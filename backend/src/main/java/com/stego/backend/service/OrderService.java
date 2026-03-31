@@ -408,4 +408,21 @@ public class OrderService {
         OrderResponse response = mapToResponse(order, payment);
         messagingTemplate.convertAndSend("/topic/user/" + order.getUser().getId() + "/orders", response);
     }
+
+    public String estimateOrderReadyTime(OrderRequest request) {
+        Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant", "id", request.getRestaurantId()));
+
+        int maxPrepTime = 0;
+        for (OrderRequest.OrderItemRequest itemReq : request.getItems()) {
+            MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
+                    .orElse(null);
+            if (menuItem != null) {
+                maxPrepTime = Math.max(maxPrepTime, menuItem.getPrepTimeMinutes());
+            }
+        }
+
+        LocalDateTime aiPredictedTime = estimationService.estimateReadyTime(restaurant, maxPrepTime);
+        return aiPredictedTime.toString();
+    }
 }

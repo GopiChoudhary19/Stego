@@ -48,3 +48,20 @@ logging:
     org.hibernate.SQL: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ── Management / Actuator ──
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true

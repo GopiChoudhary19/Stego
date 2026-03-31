@@ -119,6 +119,17 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success("Order completed", orderService.completeOrder(id, userDetails.getId())));
     }
 
+    @PostMapping("/estimate")
+    @Operation(summary = "Get a live estimation for a potential order")
+    public ResponseEntity<ApiResponse<Map<String, String>>> estimateOrder(
+            @Valid @RequestBody OrderRequest request) {
+        String estimatedTime = orderService.estimateOrderReadyTime(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Estimation calculated", 
+                Collections.singletonMap("estimatedReadyTime", estimatedTime)
+        ));
+    }
+
     @PostMapping("/{id}/payment-intent")
     @Operation(summary = "Create Stripe Payment Intent (User only)")
     public ResponseEntity<ApiResponse<Map<String, String>>> createPaymentIntent(
