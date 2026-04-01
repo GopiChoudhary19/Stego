@@ -60,7 +60,7 @@ export default function Home() {
               {/* CTA Buttons */}
               <motion.div custom={3} variants={fadeUp}
                 className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/restaurants" className="btn-primary !py-4 !px-8 !text-base !rounded-2xl group">
+                <Link href="/restaurants" className="btn-primary !py-4 !px-8 !text-base !rounded-2xl group focus-ring">
                   Browse Restaurants
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -68,22 +68,94 @@ export default function Home() {
                   Join as Owner
                 </Link>
               </motion.div>
-
-              {/* Stats */}
-              <motion.div custom={4} variants={fadeUp}
-                className="flex items-center justify-center gap-8 sm:gap-16 pt-8">
-                {[
-                  { value: '15min', label: 'Avg. Time Saved' },
-                  { value: '500+', label: 'Restaurants' },
-                  { value: '50K+', label: 'Happy Users' },
-                ].map((stat) => (
-                  <div key={stat.label} className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold gradient-text">{stat.value}</div>
-                    <div className="text-xs sm:text-sm text-text-muted mt-1">{stat.label}</div>
-                  </div>
-                ))}
-              </motion.div>
             </motion.div>
+          </div>
+        </section>
+
+        {/* ── Categories Section (Zomato Inspiration) ── */}
+        <section className="py-12 bg-surface-elevated/30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold">Inspiration for your first order</h2>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-4 sm:gap-6">
+              {[
+                { name: 'Pizza', img: '/images/cat_pizza.png', color: 'bg-red-500/10' },
+                { name: 'Burger', img: '/images/cat_burger.png', color: 'bg-amber-500/10' },
+                { name: 'Biryani', img: '/images/cat_biryani.png', color: 'bg-orange-500/10' },
+                { name: 'Healthy', img: '/images/cat_healthy.png', color: 'bg-green-500/10' },
+                { name: 'Sushi', img: '/images/cat_sushi.png', color: 'bg-indigo-500/10' },
+                { name: 'Thali', img: '/images/cat_thali.png', color: 'bg-yellow-600/10' },
+                { name: 'Desserts', img: '/images/cat_desserts.png', color: 'bg-pink-500/10' },
+                { name: 'Drinks', img: '/images/cat_drinks.png', color: 'bg-blue-500/10' },
+              ].map((cat, i) => (
+                <Link key={cat.name} href={`/restaurants?category=${cat.name}`} 
+                      className="group flex flex-col items-center gap-3">
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full ${cat.color} p-1
+                               ring-2 ring-transparent group-hover:ring-brand group-hover:scale-110 transition-all duration-300
+                               flex items-center justify-center overflow-hidden shadow-sm`}>
+                    <img src={cat.img} alt={cat.name} className="w-full h-full object-cover" />
+                  </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-text-secondary group-hover:text-brand">
+                    {cat.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Top Picks (Swiggy Style) ── */}
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold">Top Picks for You</h2>
+                <p className="text-text-secondary text-sm">Handpicked restaurants for an amazing meal</p>
+              </div>
+              <Link href="/restaurants" className="text-brand font-semibold flex items-center gap-1 hover:underline">
+                View all <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide -mx-4 px-4 scroll-smooth">
+              {[
+                { name: "Vincenzo's Italian", rating: 4.8, time: '25-30', img: '/images/restaurant_italian.png', tags: 'Pizza, Pasta' },
+                { name: 'The Daily Burger', rating: 4.6, time: '15-20', img: '/images/restaurant_burger.png', tags: 'Burger, Fast Food' },
+                { name: 'Sushi Station', rating: 4.7, time: '35-40', img: '/images/restaurant_sushi.png', tags: 'Japanese, Sushi' },
+                { name: 'Green Garden', rating: 4.9, time: '20-25', img: '/images/restaurant_healthy.png', tags: 'Salads, Organic' },
+              ].map((item, i) => (
+                <motion.div key={item.name}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="min-w-[280px] sm:min-w-[320px] group cursor-pointer">
+                  <div className="relative aspect-[16/10] rounded-2xl overflow-hidden mb-3">
+                    <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                       <span className="px-2 py-1 bg-white/90 text-black text-[10px] font-bold rounded-lg backdrop-blur shadow-sm">
+                         {item.time} MINS
+                       </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-brand transition-colors">{item.name}</h3>
+                      <p className="text-text-muted text-sm">{item.tags}</p>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-lg shadow-sm">
+                      {item.rating} <Star className="w-3 h-3 fill-white" />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </section>
 

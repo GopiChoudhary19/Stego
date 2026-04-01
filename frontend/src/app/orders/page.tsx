@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import api from '@/lib/api';
 import { useCartStore } from '@/stores/cartStore';
 import type { Order, OrderStatus, MenuItem } from '@/lib/types';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Clock, CheckCircle, XCircle, ChefHat,
   ArrowRight, Timer, MapPin, RefreshCcw
@@ -20,7 +22,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   CANCELLED: { label: 'Cancelled', color: 'text-red-400', icon: XCircle, step: 0 },
 };
 
-const statusSteps: OrderStatus[] = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED'];
+// statusSteps removed as it was unused
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -42,7 +44,7 @@ export default function OrdersPage() {
         isAvailable: true,
         restaurantId: order.restaurantId,
         prepTimeMinutes: 15,
-        category: 'Food'
+        category: 'VEG'
       };
       addItem(menuItem, order.restaurantName);
     });
@@ -134,29 +136,54 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    {/* Progress Bar (for active orders) */}
+                    {/* Immersive Live Status (Zomato/Swiggy Style) */}
                     {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && (
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          {statusSteps.slice(0, 4).map((step, idx) => {
-                            const stepConfig = statusConfig[step];
-                            const currentStep = config.step;
-                            const isActive = currentStep >= stepConfig.step;
-                            return (
-                              <div key={step} className="flex items-center gap-1 flex-1">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs
-                                  ${isActive ? 'gradient-brand text-white' : 'bg-surface-elevated text-text-muted'}`}>
-                                  {idx + 1}
-                                </div>
-                                {idx < 3 && (
-                                  <div className={`flex-1 h-0.5 mx-1 rounded ${isActive ? 'bg-brand' : 'bg-border'}`} />
-                                )}
-                              </div>
-                            );
-                          })}
+                      <div className="mb-6 bg-brand/5 rounded-3xl p-6 border border-brand/10 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+                        
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-brand/10 flex items-center justify-center animate-pulse">
+                               <config.icon className="w-6 h-6 text-brand" />
+                            </div>
+                            <div>
+                               <p className="text-[10px] font-black text-brand uppercase tracking-widest tracking-tighter">Current Status</p>
+                               <h4 className="text-xl font-black text-text-primary">
+                                 {order.status === 'PENDING' ? 'Waiting for Restaurant...' : 
+                                  order.status === 'ACCEPTED' ? 'Order Confirmed!' :
+                                  order.status === 'PREPARING' ? 'Chef is cooking your meal' :
+                                  order.status === 'READY' ? 'Ready for Pickup!' : 'Status Unknown'}
+                               </h4>
+                            </div>
+                          </div>
+
+                          {/* Progress Stepper */}
+                          <div className="relative h-2 bg-surface-elevated rounded-full mb-8 overflow-hidden">
+                             <motion.div 
+                               initial={{ width: 0 }}
+                               animate={{ width: `${(config.step / 4) * 100}%` }}
+                               className="absolute inset-y-0 left-0 gradient-brand"
+                             />
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-2 text-center">
+                             {['Confirmed', 'Kitchen', 'Preparing', 'Ready'].map((step, idx) => (
+                               <div key={step} className="space-y-2">
+                                 <div className={`w-2 h-2 rounded-full mx-auto transition-colors duration-500
+                                   ${config.step > idx ? 'bg-brand shadow-[0_0_8px_rgba(255,100,0,0.5)]' : 'bg-border'}`} />
+                                 <span className={`text-[10px] font-bold uppercase ${config.step > idx ? 'text-brand' : 'text-text-muted'}`}>{step}</span>
+                               </div>
+                             ))}
+                          </div>
                         </div>
-                        <div className="flex justify-between text-[10px] text-text-muted">
-                          <span>Pending</span><span>Accepted</span><span>Preparing</span><span>Ready</span>
+
+                        {/* Fun Microcopy (Zomato Style) */}
+                        <div className="mt-6 pt-4 border-t border-brand/5 flex items-center gap-2 text-[11px] font-medium text-text-muted italic">
+                           <ChefHat className="w-3 h-3 text-brand" />
+                           {order.status === 'PREPARING' ? "Our chef is adding some secret spices right now..." :
+                            order.status === 'ACCEPTED' ? "Great choices! The kitchen is getting ready." :
+                            order.status === 'READY' ? "It's hot and smelling amazing. See you in a bit!" :
+                            "Almost there! Hang tight."}
                         </div>
                       </div>
                     )}

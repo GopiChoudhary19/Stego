@@ -1,5 +1,7 @@
 package com.stego.backend.service;
 
+import com.stego.backend.entity.Order;
+import com.stego.backend.util.EmailTemplate;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -37,18 +39,24 @@ public class EmailService {
             logger.info("Email sent successfully to {}", to);
         } catch (MessagingException e) {
             logger.error("Failed to send email to {}: {}", to, e.getMessage());
-            // In a production app, we might retry or store in a 'failed_emails' table
         }
     }
 
     public void sendOtpEmail(String email, String otp) {
         String subject = "Stego — Your Verification Code";
-        String body = "<h3>Welcome to Stego!</h3>" +
-                "<p>Your one-time password (OTP) for login/registration is:</p>" +
-                "<h2 style='color: #ff5a1f;'>" + otp + "</h2>" +
-                "<p>This code will expire in 5 minutes.</p>" +
-                "<br><p>Save Time, Eat & Go.</p>";
-        
+        String body = EmailTemplate.getOtpTemplate(otp);
         sendEmail(email, subject, body);
+    }
+
+    public void sendOrderConfirmation(Order order) {
+        String subject = "Stego — Order Confirmed #" + order.getId();
+        String body = EmailTemplate.getOrderConfirmationTemplate(order);
+        sendEmail(order.getUser().getEmail(), subject, body);
+    }
+
+    public void sendMerchantAlert(Order order) {
+        String subject = "🍱 Stego — New Order Alert #" + order.getId();
+        String body = EmailTemplate.getMerchantAlertTemplate(order);
+        sendEmail(order.getRestaurant().getOwner().getEmail(), subject, body);
     }
 }

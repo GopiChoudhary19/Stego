@@ -8,10 +8,12 @@ import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import type { PaymentMethod } from '@/lib/types';
 import StripePayment from '@/components/StripePayment';
+import confetti from 'canvas-confetti';
 import {
-  ShoppingCart, Plus, Minus, Trash2, ArrowLeft,
+  ShoppingCart, Plus, Minus, Trash2, ArrowLeft, ArrowRight,
   CreditCard, Banknote, Smartphone, Clock, AlertCircle, CheckCircle, ShieldCheck
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CartPage() {
   const router = useRouter();
@@ -28,12 +30,15 @@ export default function CartPage() {
   // Stripe flow
   const [showStripe, setShowStripe] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
-  const [currentOrder, setCurrentOrder] = useState<any>(null);
+  const [currentOrder, setCurrentOrder] = useState<unknown>(null);
 
   // Fetch live estimation when cart changes
   useEffect(() => {
     const fetchEstimation = async () => {
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        setEstimatedTime(null);
+        return;
+      }
       setIsEstimating(true);
       try {
         const res = await api.post('/api/orders/estimate', {
@@ -41,9 +46,15 @@ export default function CartPage() {
           items: items.map(i => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
           paymentMethod,
         });
-        setEstimatedTime(res.data.data.estimatedReadyTime);
+        
+        // Robust check for the nested data structure
+        const prediction = res.data?.data?.estimatedReadyTime;
+        if (prediction) {
+          setEstimatedTime(prediction);
+        }
       } catch (err) {
-        console.error('Failed to fetch estimation:', err);
+        console.warn('Estimation service currently unavailable:', err);
+        // Silently fail and let the UI show the fallback (~30 mins)
       } finally {
         setIsEstimating(false);
       }
@@ -51,6 +62,23 @@ export default function CartPage() {
 
     fetchEstimation();
   }, [items, paymentMethod]);
+
+  const getReadinessText = () => {
+    if (isEstimating) return 'Calculating...';
+    if (!estimatedTime) return '~30 mins';
+    
+    try {
+      const readyDate = new Date(estimatedTime);
+      if (isNaN(readyDate.getTime())) return '~30 mins';
+      
+      const diffMs = readyDate.getTime() - Date.now();
+      const diffMins = Math.max(0, Math.ceil(diffMs / 60000));
+      
+      return `${diffMins} mins`;
+    } catch {
+      return '~30 mins';
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (!isAuthenticated) { router.push('/login'); return; }
@@ -87,22 +115,87 @@ export default function CartPage() {
   const handlePaymentSuccess = () => {
     setSuccess(true);
     clearCart();
-    setTimeout(() => router.push('/orders'), 2000);
   };
+
+  // Trigger celebration on success
+  useEffect(() => {
+    if (success) {
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+      const interval: NodeJS.Timeout = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+      }, 250);
+    }
+  }, [success]);
 
   if (success) {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen flex items-center justify-center px-4 pt-20">
-          <div className="text-center fade-in">
-            <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-400" />
+        <main className="min-h-screen pt-32 pb-20 flex items-center justify-center bg-surface">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="max-w-md w-full mx-4 text-center"
+          >
+            <div className="relative mb-8 flex justify-center">
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", damping: 10, stiffness: 100, delay: 0.2 }}
+                className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/20"
+              >
+                <CheckCircle className="w-12 h-12 text-white" />
+              </motion.div>
+              <div className="absolute inset-0 bg-green-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
             </div>
-            <h1 className="text-3xl font-bold mb-2">Order Confirmed!</h1>
-            <p className="text-text-secondary mb-6">Your payment was successful and your food is being prepared.</p>
-            <div className="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin mx-auto" />
-          </div>
+            
+            <h1 className="text-4xl font-black mb-4 gradient-text">Order Confirmed!</h1>
+            <p className="text-text-secondary text-lg mb-8 leading-relaxed">
+               Hurray! We&apos;ve received your order. The restaurant is preparing your feast as we speak.
+            </p>
+
+            <div className="bg-surface-elevated/50 border border-border/50 rounded-3xl p-6 mb-10 text-left">
+               <p className="text-xs font-black text-brand uppercase tracking-widest mb-4">Estimated Ready Time</p>
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-brand/10 flex items-center justify-center">
+                     <Clock className="w-6 h-6 text-brand" />
+                  </div>
+                  <div>
+                     <p className="text-2xl font-black">{getReadinessText()}</p>
+                     <p className="text-text-muted text-xs">Arrive at the restaurant by then!</p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="space-y-4">
+              <button 
+                onClick={() => router.push('/orders')}
+                className="btn-primary w-full !py-4 !rounded-2xl !text-lg shadow-xl shadow-brand/20 group"
+              >
+                Track My Order
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button 
+                onClick={() => router.push('/')}
+                className="text-brand font-bold py-2 hover:underline"
+              >
+                Back to Home
+              </button>
+            </div>
+          </motion.div>
         </main>
       </>
     );
@@ -262,7 +355,7 @@ export default function CartPage() {
                   <p className="text-xs font-semibold text-brand uppercase tracking-wider">Live estimation</p>
                   <p className="text-sm font-medium">Ready in approx. 
                     <span className="font-bold text-lg mx-1 tabular-nums">
-                      {isEstimating ? '...' : estimatedTime ? `${Math.max(0, Math.ceil((new Date(estimatedTime).getTime() - Date.now()) / 60000))} mins` : '~30 mins'}
+                      {getReadinessText()}
                     </span>
                   </p>
                 </div>

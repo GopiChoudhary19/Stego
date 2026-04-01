@@ -53,6 +53,9 @@ public class OrderService {
     @Autowired
     private PaymentService paymentService;
 
+    @Autowired
+    private EmailService emailService;
+
     @Transactional
     public OrderResponse createOrder(Long userId, OrderRequest request) {
         User user = userRepository.findById(userId)
@@ -130,7 +133,7 @@ public class OrderService {
                 .order(order)
                 .amount(total)
                 .paymentMethod(request.getPaymentMethod())
-                .status(request.getPaymentMethod() == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PENDING)
+                .status(PaymentStatus.PENDING)
                 .build();
         paymentRepository.save(payment);
 
@@ -139,6 +142,13 @@ public class OrderService {
         // Notify restaurant via WebSocket
         messagingTemplate.convertAndSend(
                 "/topic/restaurant/" + restaurant.getId() + "/orders", response);
+
+        // Phase 5: Send immediate email for COD orders
+        if (request.getPaymentMethod() == PaymentMethod.COD) {
+            emailService.sendOrderConfirmation(order);
+            emailService.sendMerchantAlert(order);
+            logger.info("COD Order {} confirmation emails sent.", order.getId());
+        }
 
         return response;
     }
@@ -371,16 +381,32 @@ public class OrderService {
 
     @Transactional
     public void handlePaymentSuccess(Long orderId, String transactionId) {
+        // Idempotency check: Already processed this transaction?
+        if (paymentRepository.findByTransactionId(transactionId).isPresent()) {
+            logger.info("Transaction {} already processed, skipping.", transactionId);
+            return;
+        }
+
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null) return;
 
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
         if (payment != null) {
+            // Already SUCCESS?
+            if (payment.getStatus() == PaymentStatus.SUCCESS) {
+                logger.info("Payment already SUCCESS for order: {}, skipping.", orderId);
+                return;
+            }
+
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setTransactionId(transactionId);
             payment.setPaidAt(LocalDateTime.now());
             paymentRepository.save(payment);
-            logger.info("Payment SUCCESS for order: {}", orderId);
+            logger.info("Payment SUCCESS for order: {}, transaction: {}", orderId, transactionId);
+            
+            // Phase 5: Send confirmation only after online payment success
+            emailService.sendOrderConfirmation(order);
+            emailService.sendMerchantAlert(order);
         }
 
         // Auto-accept if payment is success (or keep PENDING for restaurant to manual accept)
@@ -423,6 +449,6 @@ public class OrderService {
         }
 
         LocalDateTime aiPredictedTime = estimationService.estimateReadyTime(restaurant, maxPrepTime);
-        return aiPredictedTime.toString();
+        return aiPredictedTime.atZone(java.time.ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 }

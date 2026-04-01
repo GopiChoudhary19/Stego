@@ -94,6 +94,7 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/restaurants/*/menu").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/orders/estimate").permitAll()
 
                 // Admin only
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
