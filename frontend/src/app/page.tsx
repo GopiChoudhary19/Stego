@@ -20,42 +20,41 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <main>
+      <main className="bg-surface">
         {/* ── Hero Section ── */}
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-          {/* Background effects */}
-          <div className="absolute inset-0">
-            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full
-                          bg-orange-500/5 blur-[120px] animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full
-                          bg-amber-500/5 blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r
-                          from-transparent via-brand/20 to-transparent" />
+        <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
+          {/* Hero Image Background */}
+          <div className="absolute inset-y-0 right-0 w-full lg:w-1/2 opacity-20 lg:opacity-100">
+            <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/80 to-transparent z-10 lg:hidden" />
+            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-surface/40 to-surface z-10 hidden lg:block" />
+            <img 
+              src="/images/stego_hero.png" 
+              alt="Delicious Gourmet Food" 
+              className="w-full h-full object-cover"
+            />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <motion.div initial="hidden" animate="visible" className="space-y-8">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full z-20">
+            <motion.div initial="hidden" animate="visible" className="max-w-2xl">
               {/* Badge */}
               <motion.div custom={0} variants={fadeUp}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full
-                         border border-brand/20 bg-brand/5 text-brand text-sm font-medium">
+                         bg-brand/10 text-brand-700 text-sm font-semibold mb-6">
                 <Zap className="w-4 h-4" />
-                Smart Food Pre-Ordering Platform
+                Smart Food Pre-Ordering
               </motion.div>
-
-              {/* Heading */}
+              
               <motion.h1 custom={1} variants={fadeUp}
-                className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tight leading-[0.9]">
-                Save Time,
+                className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] text-text-primary mb-6">
+                Skip the lines,
                 <br />
-                <span className="gradient-text">Eat & Go</span>
+                <span className="gradient-text">Just Eat & Go.</span>
               </motion.h1>
 
-              {/* Subtitle */}
               <motion.p custom={2} variants={fadeUp}
-                className="text-lg sm:text-xl text-text-secondary max-w-2xl mx-auto leading-relaxed">
-                Pre-order your meals and skip the wait. Your food will be ready
-                when you arrive — no more queues, no more delays.
+                className="text-lg sm:text-xl text-text-secondary mb-10 leading-relaxed max-w-lg">
+                Pre-order from your favorite local restaurants. Your food is prepared 
+                exactly for your arrival time. No waiting, just premium dining.
               </motion.p>
 
               {/* CTA Buttons */}

@@ -1,22 +1,29 @@
 @import "tailwindcss";
 
 @theme {
+  /* Brand Colors */
   --color-brand: #ff6b35;
   --color-brand-dark: #e55a2b;
   --color-brand-light: #ff8c5e;
-  --color-brand-50: #fff5f0;
-  --color-brand-100: #ffe8db;
-  --color-brand-600: #ff6b35;
-  --color-brand-700: #e55a2b;
-  --color-surface: #0a0a0f;
-  --color-surface-card: #12121a;
-  --color-surface-elevated: #1a1a26;
-  --color-surface-hover: #222233;
-  --color-text-primary: #f0f0f5;
-  --color-text-secondary: #8888aa;
-  --color-text-muted: #555570;
-  --color-border: #2a2a3d;
-  --color-success: #22c55e;
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+
+  /* Surface / Light Theme */
+  --color-surface: #fdfcfb;
+  --color-surface-card: #ffffff;
+  --color-surface-elevated: #f8fafc;
+  --color-surface-hover: #f1f5f9;
+
+  /* Text Colors */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  /* UI Elements */
+  --color-border: #e2e8f0;
+  --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --font-sans: 'Inter', system-ui, sans-serif;
@@ -71,36 +78,36 @@
 
 @layer components {
   .glass {
-    background: rgba(18, 18, 26, 0.7);
+    background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .glass-light {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.03);
   }
 
   .gradient-brand {
-    background: linear-gradient(135deg, #ff6b35, #ff8c5e, #ffa366);
+    background: linear-gradient(135deg, #ff6b35, #ff8c5e, #fb923c);
   }
 
   .gradient-dark {
-    background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
+    background: linear-gradient(180deg, #fdfcfb 0%, #f8fafc 100%);
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, #ff6b35, #ffa366);
+    background: linear-gradient(135deg, #ea580c, #fb923c);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .glow-brand {
-    box-shadow: 0 0 40px rgba(255, 107, 53, 0.15), 0 0 80px rgba(255, 107, 53, 0.05);
+    box-shadow: 0 0 40px rgba(255, 107, 53, 0.08), 0 0 80px rgba(255, 107, 53, 0.03);
   }
 
   .btn-primary {
@@ -112,17 +119,18 @@
     font-weight: 600;
     font-size: 0.95rem;
     color: white;
-    background: linear-gradient(135deg, #ff6b35, #e55a2b);
+    background: linear-gradient(135deg, #ff6b35, #ea580c);
     border-radius: 12px;
     border: none;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     text-decoration: none;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.35);
+    box-shadow: 0 12px 24px rgba(255, 107, 53, 0.3);
   }
 
   .btn-primary:active {
@@ -138,7 +146,7 @@
     font-weight: 600;
     font-size: 0.95rem;
     color: var(--color-text-primary);
-    background: var(--color-surface-elevated);
+    background: white;
     border-radius: 12px;
     border: 1px solid var(--color-border);
     cursor: pointer;
@@ -149,13 +157,14 @@
   .btn-secondary:hover {
     background: var(--color-surface-hover);
     border-color: var(--color-brand);
+    color: var(--color-brand-600);
     transform: translateY(-1px);
   }
 
   .input-field {
     width: 100%;
     padding: 0.85rem 1rem;
-    background: var(--color-surface-elevated);
+    background: white;
     border: 1px solid var(--color-border);
     border-radius: 12px;
     color: var(--color-text-primary);
@@ -165,8 +174,9 @@
   }
 
   .input-field:focus {
+    background: white;
     border-color: var(--color-brand);
-    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
   }
 
   .input-field::placeholder {
@@ -176,14 +186,15 @@
   .card {
     background: var(--color-surface-card);
     border: 1px solid var(--color-border);
-    border-radius: 16px;
-    transition: all 0.3s ease;
+    border-radius: 20px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
   }
 
   .card:hover {
-    border-color: rgba(255, 107, 53, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 107, 53, 0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   }
 
   .badge {

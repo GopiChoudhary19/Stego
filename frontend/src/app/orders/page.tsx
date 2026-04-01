@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import api from '@/lib/api';
-import type { Order, OrderStatus } from '@/lib/types';
+import { useCartStore } from '@/stores/cartStore';
+import type { Order, OrderStatus, MenuItem } from '@/lib/types';
 import {
   Package, Clock, CheckCircle, XCircle, ChefHat,
-  ArrowRight, Timer, MapPin
+  ArrowRight, Timer, MapPin, RefreshCcw
 } from 'lucide-react';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ElementType; step: number }> = {
@@ -21,9 +23,31 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
 const statusSteps: OrderStatus[] = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED'];
 
 export default function OrdersPage() {
+  const router = useRouter();
+  const { addItem, clearCart } = useCartStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [tab, setTab] = useState<'live' | 'history'>('live');
   const [loading, setLoading] = useState(true);
+
+  const handleReorder = (order: Order) => {
+    clearCart();
+    order.items.forEach(item => {
+      // Create a dummy MenuItem object for the cart store
+      const menuItem: MenuItem = {
+        id: item.menuItemId,
+        name: item.itemName,
+        price: item.priceAtOrder,
+        description: '',
+        imageUrl: '',
+        isAvailable: true,
+        restaurantId: order.restaurantId,
+        prepTimeMinutes: 15,
+        category: 'Food'
+      };
+      addItem(menuItem, order.restaurantName);
+    });
+    router.push('/cart');
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -165,13 +189,26 @@ export default function OrdersPage() {
                       </div>
                     )}
 
-                    {/* Cancel button (only for PENDING) */}
-                    {order.status === 'PENDING' && (
-                      <button onClick={() => cancelOrder(order.id)}
-                              className="mt-3 text-sm text-red-400 hover:text-red-300 transition-colors">
-                        Cancel Order
-                      </button>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {order.status === 'PENDING' && (
+                        <button onClick={() => cancelOrder(order.id)}
+                                className="text-sm font-medium text-red-500 hover:text-red-400 py-2 px-4 rounded-xl hover:bg-red-500/10 transition-all">
+                          Cancel Order
+                        </button>
+                      )}
+                      {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
+                        <button onClick={() => handleReorder(order)}
+                                className="btn-secondary !text-sm !py-2 !px-4 hover:!bg-brand/5 hover:!text-brand hover:!border-brand">
+                          <RefreshCcw className="w-3.5 h-3.5 mr-1.5" />
+                          Reorder Now
+                        </button>
+                      )}
+                      <Link href={`/restaurants/${order.restaurantId}`} 
+                            className="text-sm font-medium text-brand hover:text-brand-600 py-2 px-4 rounded-xl hover:bg-brand/5 transition-all flex items-center">
+                        View Restaurant <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                      </Link>
+                    </div>
                   </div>
                 );
               })}

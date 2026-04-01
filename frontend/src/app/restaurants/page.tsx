@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import RestaurantSkeleton from '@/components/skeletons/RestaurantSkeleton';
 import api from '@/lib/api';
 import type { Restaurant } from '@/lib/types';
 import { Search, MapPin, Star, Clock, Filter, ChefHat } from 'lucide-react';
@@ -83,14 +84,7 @@ export default function RestaurantsPage() {
           {loading ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="card overflow-hidden">
-                  <div className="h-48 shimmer" />
-                  <div className="p-5 space-y-3">
-                    <div className="h-5 w-3/4 shimmer rounded-lg" />
-                    <div className="h-4 w-1/2 shimmer rounded-lg" />
-                    <div className="h-4 w-full shimmer rounded-lg" />
-                  </div>
-                </div>
+                <RestaurantSkeleton key={i} />
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -157,11 +151,10 @@ export default function RestaurantsPage() {
 
 function getDemoRestaurants(): Restaurant[] {
   return [
-    { id: 1, name: 'The Spice Kitchen', description: 'Authentic Indian cuisine', address: '123 MG Road, Bangalore', latitude: 12.97, longitude: 77.59, phone: '9876543210', imageUrl: '', openingTime: '10:00', closingTime: '22:00', isOpen: true, avgRating: 4.5, totalReviews: 128, createdAt: '' },
-    { id: 2, name: 'Pizza Paradise', description: 'Wood-fired pizzas & Italian favorites', address: '45 Brigade Road, Bangalore', latitude: 12.97, longitude: 77.60, phone: '9876543211', imageUrl: '', openingTime: '11:00', closingTime: '23:00', isOpen: true, avgRating: 4.3, totalReviews: 95, createdAt: '' },
-    { id: 3, name: 'Sushi Station', description: 'Fresh Japanese sushi and ramen', address: '78 Indiranagar, Bangalore', latitude: 12.97, longitude: 77.64, phone: '9876543212', imageUrl: '', openingTime: '12:00', closingTime: '22:30', isOpen: true, avgRating: 4.7, totalReviews: 210, createdAt: '' },
-    { id: 4, name: 'Burger Barn', description: 'Gourmet burgers and shakes', address: '12 Koramangala, Bangalore', latitude: 12.93, longitude: 77.62, phone: '9876543213', imageUrl: '', openingTime: '10:00', closingTime: '23:00', isOpen: false, avgRating: 4.1, totalReviews: 67, createdAt: '' },
-    { id: 5, name: 'Green Bowl', description: 'Healthy salads and smoothie bowls', address: '56 HSR Layout, Bangalore', latitude: 12.91, longitude: 77.63, phone: '9876543214', imageUrl: '', openingTime: '08:00', closingTime: '21:00', isOpen: true, avgRating: 4.6, totalReviews: 153, createdAt: '' },
-    { id: 6, name: 'Dragon Wok', description: 'Chinese & Thai street food', address: '90 Whitefield, Bangalore', latitude: 12.97, longitude: 77.75, phone: '9876543215', imageUrl: '', openingTime: '11:30', closingTime: '22:30', isOpen: true, avgRating: 4.4, totalReviews: 89, createdAt: '' },
+    { id: 1, name: "Vincenzo's Italian", description: 'Authentic wood-fired pizzas & Italian favorites', address: '45 Brigade Road, Bangalore', latitude: 12.97, longitude: 77.60, phone: '9876543211', imageUrl: '/images/restaurant_italian.png', openingTime: '11:00', closingTime: '23:00', isOpen: true, avgRating: 4.8, totalReviews: 120, createdAt: '' },
+    { id: 2, name: 'The Daily Burger', description: 'Gourmet burgers and artisanal shakes', address: '12 Koramangala, Bangalore', latitude: 12.93, longitude: 77.62, phone: '9876543213', imageUrl: '/images/restaurant_burger.png', openingTime: '10:00', closingTime: '23:00', isOpen: true, avgRating: 4.6, totalReviews: 310, createdAt: '' },
+    { id: 3, name: 'Sushi Station', description: 'Fresh Japanese sushi and premium ramen', address: '78 Indiranagar, Bangalore', latitude: 12.97, longitude: 77.64, phone: '9876543212', imageUrl: '/images/restaurant_sushi.png', openingTime: '12:00', closingTime: '22:30', isOpen: true, avgRating: 4.7, totalReviews: 210, createdAt: '' },
+    { id: 4, name: 'Green Garden', description: 'Healthy organic bowls and fresh salads', address: '56 HSR Layout, Bangalore', latitude: 12.91, longitude: 77.63, phone: '9876543214', imageUrl: '/images/restaurant_healthy.png', openingTime: '08:00', closingTime: '21:00', isOpen: true, avgRating: 4.9, totalReviews: 153, createdAt: '' },
+    { id: 5, name: 'Dragon Wok', description: 'Chinese & Thai street food favorites', address: '90 Whitefield, Bangalore', latitude: 12.97, longitude: 77.75, phone: '9876543215', imageUrl: '/images/stego_hero.png', openingTime: '11:30', closingTime: '22:30', isOpen: true, avgRating: 4.4, totalReviews: 89, createdAt: '' },
   ];
 }

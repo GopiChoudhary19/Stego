@@ -53,7 +53,7 @@ if exist %WRAPPER_JAR% (
 @REM work with both Windows and non-Windows executions.
 set MAVEN_CMD_LINE_ARGS=%*
 
-%JAVA_HOME%\bin\java.exe %JVM_CONFIG_MAVEN_PROPS% %MAVEN_OPTS% ^
+"%JAVA_HOME%\bin\java.exe" %JVM_CONFIG_MAVEN_PROPS% %MAVEN_OPTS% ^
     -classpath %WRAPPER_JAR% ^
     org.apache.maven.wrapper.MavenWrapperMain %MAVEN_CMD_LINE_ARGS%
 
