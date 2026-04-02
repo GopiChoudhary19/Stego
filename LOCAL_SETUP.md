@@ -28,11 +28,30 @@ docker-compose up -d
     - `JWT_SECRET`: You can use the default or generate a new one.
 
 ### Run the Backend
+- macOS / Linux (Maven Wrapper):
 ```bash
-# Using the Maven Wrapper
+cd backend
 ./mvnw spring-boot:run
 ```
+
+- Windows (PowerShell - recommended):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\stego_start.ps1
+```
+
+- Windows (CMD):
+```
+cd backend
+mvnw.cmd spring-boot:run
+```
+
 *The backend will be live at `http://localhost:8080`.*
+
+Note: PowerShell may block script execution by default. To allow running `stego_start.ps1` temporarily, use the `-ExecutionPolicy Bypass` flag shown above, or set a persistent policy for the current user:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
 
 ---
 

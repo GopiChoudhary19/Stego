@@ -54,9 +54,21 @@ docker-compose up -d
 ```
 
 ### 2. Run the Backend
+- macOS / Linux:
 ```bash
 cd backend
 ./mvnw spring-boot:run
+```
+
+- Windows (PowerShell - recommended):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\stego_start.ps1
+```
+
+- Windows (CMD):
+```
+cd backend
+mvnw.cmd spring-boot:run
 ```
 
 ### 3. Open Swagger UI
