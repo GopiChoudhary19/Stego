@@ -1,4 +1,4 @@
-# Render free tier: backend API + Postgres. Frontend is deployed on Vercel (see frontend/vercel.json).
+# Render free tier: backend API + frontend + Postgres.
 services:
   - type: web
     name: stego-backend
@@ -23,12 +23,21 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # set to the Vercel URL, e.g. https://stego.vercel.app
       - key: ALLOWED_ORIGINS
-        sync: false
+        fromService: {name: stego-frontend, type: web, envVarKey: RENDER_EXTERNAL_URL}
       - key: FRONTEND_URL
-        sync: false
+        fromService: {name: stego-frontend, type: web, envVarKey: RENDER_EXTERNAL_URL}
     healthCheckPath: /actuator/health
+
+  - type: web
+    name: stego-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService: {name: stego-backend, type: web, envVarKey: RENDER_EXTERNAL_URL}
 
 databases:
   - name: stego-db
