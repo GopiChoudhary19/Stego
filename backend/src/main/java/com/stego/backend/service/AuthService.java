@@ -3,6 +3,7 @@ package com.stego.backend.service;
 import com.stego.backend.dto.request.LoginRequest;
 import com.stego.backend.dto.request.RegisterRequest;
 import com.stego.backend.dto.response.AuthResponse;
+import com.stego.backend.dto.response.OtpChallengeResponse;
 import com.stego.backend.entity.RefreshToken;
 import com.stego.backend.entity.User;
 import com.stego.backend.entity.VerificationCode;
@@ -20,10 +21,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -31,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthService {
+
+    private static final SecureRandom OTP_RANDOM = new SecureRandom();
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -63,7 +66,7 @@ public class AuthService {
         });
     }
 
-    public AuthResponse register(RegisterRequest request) {
+    public OtpChallengeResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BadRequestException("Email is already registered");
         }
@@ -83,23 +86,11 @@ public class AuthService {
 
         user = userRepository.save(user);
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
-
-        // Phase 4.5: Generate and store OTP with rate limiting
         sendAndStoreOtp(user.getEmail(), "AUTH");
-
-        return new AuthResponse(jwt, refreshToken.getToken(), user.getId(),
-                user.getName(), user.getEmail(), user.getRole().name());
+        return new OtpChallengeResponse(user.getEmail(), true);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public OtpChallengeResponse login(LoginRequest request) {
         Bucket bucket = resolveBucket(request.getEmail());
         if (!bucket.tryConsume(1)) {
             throw new RateLimitExceededException("Too many login attempts. Please try again later.");
@@ -109,19 +100,25 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
 
-        // Phase 4.5: Generate and store OTP with rate limiting
+        // tokens are only issued after the emailed code is verified (completeSignIn)
         sendAndStoreOtp(userDetails.getEmail(), "AUTH");
+        return new OtpChallengeResponse(userDetails.getEmail(), true);
+    }
 
-        String role = userDetails.getAuthorities().iterator().next().getAuthority();
-
-        return new AuthResponse(jwt, refreshToken.getToken(), userDetails.getId(),
-                userDetails.getName(), userDetails.getEmail(), role);
+    /** Step 2 of sign-in: a correct one-time code is exchanged for access and refresh tokens. */
+    public AuthResponse completeSignIn(String email, String code) {
+        if (email == null || code == null) {
+            throw new BadRequestException("Email and code are required");
+        }
+        verifyOtp(email, code, "AUTH");
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("No account found for this email"));
+        String jwt = jwtUtils.generateTokenFromEmail(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+        return new AuthResponse(jwt, refreshToken.getToken(), user.getId(),
+                user.getName(), user.getEmail(), user.getRole().name());
     }
 
     public AuthResponse refreshToken(String requestRefreshToken) {
@@ -143,7 +140,7 @@ public class AuthService {
             throw new RateLimitExceededException("Too many OTP requests. Please wait a few minutes.");
         }
 
-        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
+        String otp = String.valueOf(100000 + OTP_RANDOM.nextInt(900000));
         
         // Save to DB
         verificationCodeRepository.deleteByEmailAndType(email, type);
