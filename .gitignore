@@ -35,3 +35,8 @@ logs/
 
 # ── Docker ──
 docker-compose.override.yml
+
+# ── Local logs and backups ──
+*_log.txt
+*.log
+*.bak
