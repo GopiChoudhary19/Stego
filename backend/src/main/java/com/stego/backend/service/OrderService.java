@@ -422,6 +422,11 @@ public class OrderService {
         if (order == null) return;
 
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
+        // webhooks can arrive late or out of order; never cancel an order that has already been paid
+        if (payment != null && payment.getStatus() == PaymentStatus.SUCCESS) {
+            logger.warn("Ignoring payment failure for order {}: payment already succeeded", orderId);
+            return;
+        }
         if (payment != null) {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
