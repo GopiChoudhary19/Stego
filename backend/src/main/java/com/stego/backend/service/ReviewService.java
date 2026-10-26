@@ -71,12 +71,14 @@ public class ReviewService {
         return mapToResponse(review);
     }
 
+    @Transactional(readOnly = true)
     public List<ReviewResponse> getRestaurantReviews(Long restaurantId) {
         return reviewRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<ReviewResponse> getUserReviews(Long userId) {
         return reviewRepository.findByUserId(userId).stream()
                 .map(this::mapToResponse)

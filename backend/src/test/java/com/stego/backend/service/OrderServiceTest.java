@@ -9,14 +9,18 @@ import com.stego.backend.enums.PaymentMethod;
 import com.stego.backend.enums.PaymentStatus;
 import com.stego.backend.repository.OrderRepository;
 import com.stego.backend.repository.PaymentRepository;
+import com.stego.backend.repository.RestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,6 +35,7 @@ class OrderServiceTest {
 
     @Mock private OrderRepository orderRepository;
     @Mock private PaymentRepository paymentRepository;
+    @Mock private RestaurantRepository restaurantRepository;
     @Mock private EstimationService estimationService;
     @Mock private PaymentService paymentService;
     @Mock private EmailService emailService;
@@ -117,5 +122,39 @@ class OrderServiceTest {
 
         verify(paymentRepository, never()).save(any());
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void ownerQueueIncludesReadyOrdersSoTheyCanBeCompleted() {
+        User owner = new User();
+        owner.setId(5L);
+        order.getRestaurant().setOwner(owner);
+        when(restaurantRepository.findById(3L)).thenReturn(Optional.of(order.getRestaurant()));
+        when(orderRepository.findByRestaurantIdAndStatusInOrderByQueuePositionAsc(eq(3L), any())).thenReturn(List.of());
+
+        orderService.getRestaurantQueue(3L, 5L);
+
+        ArgumentCaptor<List<OrderStatus>> statuses = ArgumentCaptor.forClass(List.class);
+        verify(orderRepository).findByRestaurantIdAndStatusInOrderByQueuePositionAsc(eq(3L), statuses.capture());
+        assertTrue(statuses.getValue().contains(OrderStatus.READY));
+    }
+
+    @Test
+    void openingHoursWithinOneDay() {
+        LocalTime open = LocalTime.of(10, 0), close = LocalTime.of(22, 0);
+        assertTrue(OrderService.isWithinOpeningHours(LocalTime.of(10, 0), open, close));
+        assertTrue(OrderService.isWithinOpeningHours(LocalTime.of(15, 30), open, close));
+        assertFalse(OrderService.isWithinOpeningHours(LocalTime.of(9, 59), open, close));
+        assertFalse(OrderService.isWithinOpeningHours(LocalTime.of(22, 1), open, close));
+    }
+
+    @Test
+    void openingHoursPastMidnight() {
+        LocalTime open = LocalTime.of(18, 0), close = LocalTime.of(2, 0);
+        assertTrue(OrderService.isWithinOpeningHours(LocalTime.of(23, 0), open, close));
+        assertTrue(OrderService.isWithinOpeningHours(LocalTime.of(1, 30), open, close));
+        assertFalse(OrderService.isWithinOpeningHours(LocalTime.of(12, 0), open, close));
+        assertFalse(OrderService.isWithinOpeningHours(LocalTime.of(2, 1), open, close));
     }
 }

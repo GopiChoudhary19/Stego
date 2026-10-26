@@ -72,7 +72,7 @@ public class OrderService {
         // Check working hours
         LocalTime now = LocalTime.now();
         if (restaurant.getOpeningTime() != null && restaurant.getClosingTime() != null) {
-            if (now.isBefore(restaurant.getOpeningTime()) || now.isAfter(restaurant.getClosingTime())) {
+            if (!isWithinOpeningHours(now, restaurant.getOpeningTime(), restaurant.getClosingTime())) {
                 throw new BadRequestException("Restaurant is outside of working hours ("
                         + restaurant.getOpeningTime() + " - " + restaurant.getClosingTime() + ")");
             }
@@ -153,6 +153,8 @@ public class OrderService {
         return response;
     }
 
+    // read inside a transaction: mapToResponse touches lazy associations (items, user, restaurant)
+    @Transactional(readOnly = true)
     public OrderResponse getOrder(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
@@ -167,6 +169,7 @@ public class OrderService {
         return mapToResponse(order, payment);
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getUserOrders(Long userId) {
         return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(order -> {
@@ -176,6 +179,7 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getActiveOrders(Long userId) {
         List<OrderStatus> activeStatuses = List.of(
                 OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY);
@@ -187,6 +191,7 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getRestaurantOrders(Long restaurantId, Long ownerId) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", "id", restaurantId));
@@ -203,6 +208,7 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> getRestaurantQueue(Long restaurantId, Long ownerId) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", "id", restaurantId));
@@ -211,7 +217,8 @@ public class OrderService {
             throw new UnauthorizedException("You can only view orders for your own restaurants");
         }
 
-        List<OrderStatus> activeStatuses = List.of(OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PREPARING);
+        // READY orders stay visible until the customer picks them up and the owner completes them
+        List<OrderStatus> activeStatuses = List.of(OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PREPARING, OrderStatus.READY);
         return orderRepository.findByRestaurantIdAndStatusInOrderByQueuePositionAsc(restaurantId, activeStatuses).stream()
                 .map(order -> {
                     Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
@@ -364,6 +371,7 @@ public class OrderService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public String createPaymentIntent(Long orderId, Long userId) throws StripeException {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
@@ -438,6 +446,14 @@ public class OrderService {
 
         OrderResponse response = mapToResponse(order, payment);
         messagingTemplate.convertAndSend("/topic/user/" + order.getUser().getId() + "/orders", response);
+    }
+
+    /** True if {@code now} falls inside the opening hours, including hours that run past midnight (e.g. 18:00-02:00). */
+    static boolean isWithinOpeningHours(LocalTime now, LocalTime opening, LocalTime closing) {
+        if (!closing.isBefore(opening)) {
+            return !now.isBefore(opening) && !now.isAfter(closing);
+        }
+        return !now.isBefore(opening) || !now.isAfter(closing);
     }
 
     public String estimateOrderReadyTime(OrderRequest request) {
