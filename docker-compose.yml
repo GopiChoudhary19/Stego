@@ -39,6 +39,8 @@ services:
       DB_USER: ${DB_USER:-stego_admin}
       DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       SERVER_PORT: 8080
     ports:
       - "8080:8080"

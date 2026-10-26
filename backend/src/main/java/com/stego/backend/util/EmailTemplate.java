@@ -67,7 +67,7 @@ public class EmailTemplate {
                 "</div></body></html>";
     }
 
-    public static String getMerchantAlertTemplate(Order order) {
+    public static String getMerchantAlertTemplate(Order order, String dashboardUrl) {
         return "<html><body style='font-family: sans-serif; background-color: #333; padding: 20px;'>" +
                 "<div style='max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 15px;'>" +
                 "  <h3 style='color: #333; margin-top: 0;'>New Order Received! 🍱</h3>" +
@@ -78,7 +78,7 @@ public class EmailTemplate {
                 "    <p style='margin: 0;'><strong>Total:</strong> ₹" + order.getTotalAmount() + "</p>" +
                 "  </div>" +
                 "  <p>Please log in to your dashboard to <strong>ACCEPT</strong> and begin preparation.</p>" +
-                "  <a href='http://localhost:3000/dashboard' style='display: inline-block; background: #333; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;'>Open Dashboard</a>" +
+                "  <a href='" + dashboardUrl + "' style='display: inline-block; background: #333; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;'>Open Dashboard</a>" +
                 "</div></body></html>";
     }
 }

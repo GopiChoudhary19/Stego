@@ -4,6 +4,7 @@ import com.stego.backend.security.AuthEntryPoint;
 import com.stego.backend.security.AuthTokenFilter;
 import com.stego.backend.security.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -56,17 +57,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Value("${app.allowed-origins}")
+    private String[] allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Dynamic origins from environment variable
-        String allowedOrigins = System.getenv("ALLOWED_ORIGINS");
-        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
-            configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
-        } else {
-            configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        }
+        configuration.setAllowedOrigins(List.of(allowedOrigins));
         
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
@@ -96,6 +94,7 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/restaurants/*/menu").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/reviews/restaurant/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/orders/estimate").permitAll()
 
                 // Admin only

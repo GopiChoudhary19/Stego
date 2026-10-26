@@ -52,6 +52,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS to the frontend URL}
+      FRONTEND_URL: ${FRONTEND_URL:?set FRONTEND_URL to the frontend URL}
       SERVER_PORT: 8080
       SPRING_PROFILES_ACTIVE: prod
     networks:
