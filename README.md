@@ -2,19 +2,22 @@
 
 > **Save Time, Eat & Go** — Reduce waiting time in restaurants by allowing users to pre-order food and pick it up when they arrive.
 
+![CI](https://github.com/GopiChoudhary19/Stego/actions/workflows/ci.yml/badge.svg)
+
 ---
 
 ## 🏗️ Tech Stack
 
 | Layer     | Technology                                    |
 |-----------|-----------------------------------------------|
-| Backend   | Spring Boot 3.2, Java 17, Spring Security     |
-| Database  | PostgreSQL 16                                  |
-| Auth      | JWT (access + refresh tokens), BCrypt          |
+| Backend   | Spring Boot 3.4, Java 17, Spring Security      |
+| Database  | PostgreSQL 16, Flyway migrations               |
+| Auth      | JWT (access + refresh tokens), BCrypt, email OTP |
+| Payments  | Stripe Payment Intents + signed webhooks       |
 | Realtime  | WebSocket (STOMP + SockJS)                     |
 | API Docs  | Swagger / OpenAPI 3 (springdoc)                |
-| Frontend  | Next.js, Tailwind CSS, Zustand *(coming soon)* |
-| DevOps    | Docker, GitHub Actions                         |
+| Frontend  | Next.js 16, React 19, Tailwind CSS, Zustand    |
+| DevOps    | Docker, GitHub Actions, Render blueprint       |
 
 ---
 
@@ -48,12 +51,25 @@ backend/
 - Maven 3.9+
 - Docker & Docker Compose
 
-### 1. Start PostgreSQL
+### 1. Configure secrets
 ```bash
-docker-compose up -d
+cp .env.example .env              # docker compose reads this file
+cp backend/.env.example backend/.env
+```
+Set `DB_PASSWORD` and `JWT_SECRET` (generate one with `openssl rand -base64 32`). There are no built-in
+defaults: the app and `docker compose` refuse to start without them. Stripe and SMTP settings are optional
+for local runs; Stripe webhooks are rejected until `STRIPE_WEBHOOK_SECRET` is set.
+
+For a quick look without PostgreSQL, run the backend with the in-memory profile:
+`./mvnw spring-boot:run -Dspring-boot.run.profiles=h2`.
+
+### 2. Start PostgreSQL
+```bash
+docker compose up -d stego-db
 ```
 
-### 2. Run the Backend
+### 3. Run the Backend
+Export the variables from `backend/.env` into your shell first (Spring does not read `.env` files).
 - macOS / Linux:
 ```bash
 cd backend
@@ -71,7 +87,7 @@ cd backend
 mvnw.cmd spring-boot:run
 ```
 
-### 3. Open Swagger UI
+### 4. Open Swagger UI
 ```
 http://localhost:8080/swagger-ui.html
 ```
@@ -186,11 +202,29 @@ WebSocket endpoints (STOMP over SockJS):
 
 ---
 
+## 🧪 Tests
+
+```bash
+cd backend
+./mvnw verify        # needs PostgreSQL; set DB_HOST / DB_PASSWORD as in CI
+```
+
+- Unit tests for order payment handling (duplicate and late Stripe events), the Stripe webhook signature
+  check and the prep-time estimator.
+- An application-context test that starts the app against PostgreSQL with Flyway migrations and
+  `ddl-auto: validate`, exactly as production does, so a migration that drifts from the entities fails CI.
+
+CI runs the backend tests against a PostgreSQL service, lints and builds the frontend, and builds both Docker
+images. The deploy workflow is manual (`workflow_dispatch`).
+
+---
+
 ## 🐳 Docker Deployment
 
 ```bash
-# Build & run everything
-docker-compose up -d        # PostgreSQL
-cd backend && docker build -t stego-backend .
-docker run -p 8080:8080 --env-file .env stego-backend
+# Build & run everything (database, backend, frontend) using the values in .env
+docker compose up -d --build
 ```
+
+On Render, `render.yaml` provisions the database and generates `JWT_SECRET`; add the Stripe and SMTP
+variables in the dashboard.
