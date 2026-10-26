@@ -47,8 +47,8 @@
     <logger name="org.hibernate.SQL" level="WARN" />
     <logger name="org.hibernate.type.descriptor.sql" level="WARN" />
 
-    <!-- Dev Profile -->
-    <springProfile name="default,dev">
+    <!-- Every non-production profile (default, dev, h2, test) logs to the console -->
+    <springProfile name="!prod">
         <root level="INFO">
             <appender-ref ref="CONSOLE" />
         </root>
