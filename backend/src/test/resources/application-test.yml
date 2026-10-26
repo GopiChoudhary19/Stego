@@ -1,14 +1,19 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/stego_test
-    username: stego_admin
-    password: stego_secret_2024
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stego_test}
+    username: ${DB_USER:stego_admin}
+    password: ${DB_PASSWORD:stego_secret_test}
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # same as production: Flyway builds the schema, Hibernate only checks it matches the entities
+      ddl-auto: validate
+  mail:
+    host: localhost
+    port: 2525
 
 app:
   jwt:
-    secret: c3RlZ29TZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25JbjIwMjQ=
+    # test-only key, never used outside the test profile
+    secret: dGVzdFNlY3JldEtleUZvckNJQ0RQaXBlbGluZTIwMjQ=
     expiration-ms: 900000
     refresh-expiration-ms: 604800000

@@ -25,7 +25,7 @@ docker-compose up -d
 2.  Copy `.env.example` to `.env`: `cp .env.example .env`
 3.  Open `.env` and fill in your details:
     - `STRIPE_SECRET_KEY`: Get from [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys).
-    - `JWT_SECRET`: You can use the default or generate a new one.
+    - `JWT_SECRET`: required. Generate one with `openssl rand -base64 32`.
 
 ### Run the Backend
 - macOS / Linux (Maven Wrapper):
