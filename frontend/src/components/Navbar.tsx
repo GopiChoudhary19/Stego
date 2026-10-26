@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import {
@@ -11,8 +11,13 @@ import {
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const itemCount = useCartStore((s) => s.getItemCount());
+  const { user, isAuthenticated: storedAuth, logout } = useAuthStore();
+  // the token lives in localStorage, which the server cannot see; show signed-in links only after
+  // mounting so the server render and the first browser render match (no hydration error)
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const isAuthenticated = mounted && storedAuth;
+  const storedItemCount = useCartStore((s) => s.getItemCount());
+  const itemCount = mounted ? storedItemCount : 0; // the cart is also kept in localStorage
 
   return (
     <nav className="glass fixed top-0 left-0 right-0 z-50">

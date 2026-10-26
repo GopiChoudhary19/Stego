@@ -31,20 +31,13 @@ export default function MenuEditor({ restaurantId }: MenuEditorProps) {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchMenu();
+    let cancelled = false;
+    api.get(`/api/restaurants/${restaurantId}/menu`)
+      .then((res) => { if (!cancelled) setItems(res.data.data || []); })
+      .catch((err) => console.error('Failed to fetch menu:', err))
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [restaurantId]);
-
-  const fetchMenu = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/api/restaurants/${restaurantId}/menu`);
-      setItems(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch menu:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggleAvailability = async (item: MenuItem) => {
     try {
@@ -52,7 +45,7 @@ export default function MenuEditor({ restaurantId }: MenuEditorProps) {
       const updatedData = { ...item, isAvailable: !item.isAvailable };
       await api.put(`/api/menu/${item.id}`, updatedData);
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, isAvailable: !item.isAvailable } : i));
-    } catch (err) {
+    } catch {
       alert('Failed to update availability');
     } finally {
       setUpdatingId(null);
@@ -66,7 +59,7 @@ export default function MenuEditor({ restaurantId }: MenuEditorProps) {
       const updatedData = { ...item, price: newPrice };
       await api.put(`/api/menu/${item.id}`, updatedData);
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, price: newPrice } : i));
-    } catch (err) {
+    } catch {
       alert('Failed to update price');
     } finally {
       setUpdatingId(null);

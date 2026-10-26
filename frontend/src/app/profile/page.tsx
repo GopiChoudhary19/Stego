@@ -13,7 +13,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
     loadUser();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadUser, router]);
 
   if (!user) return null;
 

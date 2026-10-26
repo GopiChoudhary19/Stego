@@ -13,7 +13,7 @@ import {
   ShoppingCart, Plus, Minus, Trash2, ArrowLeft, ArrowRight,
   CreditCard, Banknote, Smartphone, Clock, AlertCircle, CheckCircle, ShieldCheck
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export default function CartPage() {
   const router = useRouter();
@@ -30,7 +30,6 @@ export default function CartPage() {
   // Stripe flow
   const [showStripe, setShowStripe] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
-  const [currentOrder, setCurrentOrder] = useState<unknown>(null);
 
   // Fetch live estimation when cart changes
   useEffect(() => {
@@ -97,7 +96,6 @@ export default function CartPage() {
       if (paymentMethod === 'CARD') {
         const intentRes = await api.post(`/api/orders/${order.id}/payment-intent`);
         setClientSecret(intentRes.data.data.clientSecret);
-        setCurrentOrder(order);
         setShowStripe(true);
       } else {
         setSuccess(true);
