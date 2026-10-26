@@ -19,6 +19,7 @@ export default function RestaurantsPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{lat: number, lon: number} | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
@@ -45,8 +46,10 @@ export default function RestaurantsPage() {
     try {
       const res = await api.get('/api/restaurants');
       setRestaurants(res.data.data || []);
+      setError(null);
     } catch {
-      setRestaurants(getDemoRestaurants());
+      setRestaurants([]);
+      setError('Could not load restaurants. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -55,12 +58,11 @@ export default function RestaurantsPage() {
   const handleSearch = async () => {
     if (!search.trim()) { fetchRestaurants(); return; }
     try {
-      const res = await api.get(`/api/restaurants/search?q=${search}`);
+      const res = await api.get(`/api/restaurants/search?q=${encodeURIComponent(search.trim())}`);
       setRestaurants(res.data.data || []);
+      setError(null);
     } catch {
-      setRestaurants(getDemoRestaurants().filter(r =>
-        r.name.toLowerCase().includes(search.toLowerCase())
-      ));
+      setError('Search failed. Please try again.');
     }
   };
 
@@ -176,6 +178,9 @@ export default function RestaurantsPage() {
           </div>
 
           {/* Restaurant Grid */}
+          {error && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">{error}</div>
+          )}
           {loading ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {[...Array(6)].map((_, i) => (
@@ -267,14 +272,4 @@ export default function RestaurantsPage() {
       </main>
     </>
   );
-}
-
-function getDemoRestaurants(): Restaurant[] {
-  return [
-    { id: 1, name: "Vincenzo's Italian", description: 'Authentic wood-fired pizzas & Italian favorites', address: '45 Brigade Road, Bangalore', latitude: 12.97, longitude: 77.60, phone: '9876543211', imageUrl: '/images/restaurant_italian.png', openingTime: '11:00', closingTime: '23:00', isOpen: true, avgRating: 4.8, totalReviews: 120, createdAt: '' },
-    { id: 2, name: 'The Daily Burger', description: 'Gourmet burgers and artisanal shakes', address: '12 Koramangala, Bangalore', latitude: 12.93, longitude: 77.62, phone: '9876543213', imageUrl: '/images/restaurant_burger.png', openingTime: '10:00', closingTime: '23:00', isOpen: true, avgRating: 4.6, totalReviews: 310, createdAt: '' },
-    { id: 3, name: 'Sushi Station', description: 'Fresh Japanese sushi and premium ramen', address: '78 Indiranagar, Bangalore', latitude: 12.97, longitude: 77.64, phone: '9876543212', imageUrl: '/images/restaurant_sushi.png', openingTime: '12:00', closingTime: '22:30', isOpen: true, avgRating: 4.7, totalReviews: 210, createdAt: '' },
-    { id: 4, name: 'Green Garden', description: 'Healthy organic bowls and fresh salads', address: '56 HSR Layout, Bangalore', latitude: 12.91, longitude: 77.63, phone: '9876543214', imageUrl: '/images/restaurant_healthy.png', openingTime: '08:00', closingTime: '21:00', isOpen: true, avgRating: 4.9, totalReviews: 153, createdAt: '' },
-    { id: 5, name: 'Dragon Wok', description: 'Chinese & Thai street food favorites', address: '90 Whitefield, Bangalore', latitude: 12.97, longitude: 77.75, phone: '9876543215', imageUrl: '/images/stego_hero.png', openingTime: '11:30', closingTime: '22:30', isOpen: true, avgRating: 4.4, totalReviews: 89, createdAt: '' },
-  ];
 }

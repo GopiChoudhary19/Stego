@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import api from '@/lib/api';
 import { useCartStore } from '@/stores/cartStore';
 import type { Order, OrderStatus, MenuItem } from '@/lib/types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Package, Clock, CheckCircle, XCircle, ChefHat,
   ArrowRight, Timer, MapPin, RefreshCcw
@@ -30,6 +30,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [tab, setTab] = useState<'live' | 'history'>('live');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleReorder = (order: Order) => {
     clearCart();
@@ -51,31 +52,32 @@ export default function OrdersPage() {
     router.push('/cart');
   };
 
-  useEffect(() => {
-    fetchOrders();
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
-  }, [tab]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const endpoint = tab === 'live' ? '/api/orders/live' : '/api/orders';
       const res = await api.get(endpoint);
       setOrders(res.data.data || []);
+      setError(null);
     } catch {
-      setOrders(getDemoOrders());
+      setError('Could not load your orders. Retrying shortly.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [tab]);
+
+  useEffect(() => {
+    const first = setTimeout(fetchOrders, 0);
+    // poll for status updates every 10 seconds
+    const interval = setInterval(fetchOrders, 10000);
+    return () => { clearTimeout(first); clearInterval(interval); };
+  }, [fetchOrders]);
 
   const cancelOrder = async (orderId: number) => {
     try {
       await api.post(`/api/orders/${orderId}/cancel`);
       fetchOrders();
     } catch {
-      // ignore
+      setError(`Could not cancel order #${orderId}. It may already be in preparation.`);
     }
   };
 
@@ -99,6 +101,9 @@ export default function OrdersPage() {
             ))}
           </div>
 
+{error && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">{error}</div>
+          )}
           {loading ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => <div key={i} className="h-40 shimmer rounded-2xl" />)}
@@ -245,29 +250,4 @@ export default function OrdersPage() {
       </main>
     </>
   );
-}
-
-function getDemoOrders(): Order[] {
-  return [
-    {
-      id: 1001, userId: 1, userName: 'Demo User', restaurantId: 1, restaurantName: 'The Spice Kitchen',
-      totalAmount: 580, status: 'PREPARING', scheduledPickupTime: '', estimatedReadyTime: new Date(Date.now() + 15 * 60000).toISOString(),
-      actualReadyTime: '', queuePosition: 2, specialInstructions: '', paymentMethod: 'UPI', paymentStatus: 'SUCCESS',
-      items: [
-        { id: 1, menuItemId: 101, itemName: 'Butter Chicken', quantity: 1, priceAtOrder: 320 },
-        { id: 2, menuItemId: 102, itemName: 'Paneer Tikka', quantity: 1, priceAtOrder: 260 },
-      ],
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 1002, userId: 1, userName: 'Demo User', restaurantId: 2, restaurantName: 'Pizza Paradise',
-      totalAmount: 450, status: 'READY', scheduledPickupTime: '', estimatedReadyTime: '',
-      actualReadyTime: new Date().toISOString(), queuePosition: 0, specialInstructions: '', paymentMethod: 'CARD', paymentStatus: 'SUCCESS',
-      items: [
-        { id: 3, menuItemId: 201, itemName: 'Margherita Pizza', quantity: 1, priceAtOrder: 250 },
-        { id: 4, menuItemId: 202, itemName: 'Garlic Bread', quantity: 2, priceAtOrder: 100 },
-      ],
-      createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
-    },
-  ];
 }
