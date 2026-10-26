@@ -23,6 +23,8 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx350m
       - key: ALLOWED_ORIGINS
         fromService: {name: stego-frontend, type: web, envVarKey: RENDER_EXTERNAL_URL}
       - key: FRONTEND_URL
