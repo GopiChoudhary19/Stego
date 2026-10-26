@@ -69,7 +69,11 @@ management:
         include: "health,info,metrics"
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+  health:
+    # an unreachable or unconfigured SMTP server should not mark the whole app as down
+    mail:
+      enabled: false
   info:
     env:
       enabled: true
