@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-stego}
       POSTGRES_USER: ${DB_USER:-stego_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-stego_secret_2024}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -37,8 +37,8 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-stego}
       DB_USER: ${DB_USER:-stego_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-stego_secret_2024}
-      JWT_SECRET: ${JWT_SECRET:-c3RlZ29TZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25JbjIwMjQ=}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       SERVER_PORT: 8080
     ports:
       - "8080:8080"

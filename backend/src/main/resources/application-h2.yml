@@ -20,7 +20,7 @@ spring:
   flyway:
     enabled: false
 
-# ── JWT Configuration Fallback ──
+# ── JWT: in-memory dev profile only; any shared or deployed setup must set JWT_SECRET ──
 app:
   jwt:
     secret: ${JWT_SECRET:c3RlZ29TZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25JbjIwMjQ=}
