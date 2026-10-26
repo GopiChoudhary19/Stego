@@ -1,67 +1,38 @@
-# Render.com deployment
+# Render free tier: backend API + Postgres. Frontend is deployed on Vercel (see frontend/vercel.json).
 services:
-  # ── Backend API ──
   - type: web
     name: stego-backend
     runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     envVars:
       - key: DB_HOST
-        fromDatabase:
-          name: stego-db
-          property: host
+        fromDatabase: {name: stego-db, property: host}
       - key: DB_PORT
-        fromDatabase:
-          name: stego-db
-          property: port
+        fromDatabase: {name: stego-db, property: port}
       - key: DB_NAME
-        fromDatabase:
-          name: stego-db
-          property: database
+        fromDatabase: {name: stego-db, property: database}
       - key: DB_USER
-        fromDatabase:
-          name: stego-db
-          property: user
+        fromDatabase: {name: stego-db, property: user}
       - key: DB_PASSWORD
-        fromDatabase:
-          name: stego-db
-          property: password
+        fromDatabase: {name: stego-db, property: password}
       - key: JWT_SECRET
         generateValue: true
       - key: SERVER_PORT
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      # the frontend's public URL, for CORS, the WebSocket and links in emails
+      # set to the Vercel URL, e.g. https://stego.vercel.app
       - key: ALLOWED_ORIGINS
-        fromService:
-          name: stego-frontend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        sync: false
       - key: FRONTEND_URL
-        fromService:
-          name: stego-frontend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        sync: false
     healthCheckPath: /actuator/health
-
-  # ── Frontend ──
-  - type: web
-    name: stego-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: stego-backend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
 
 databases:
   - name: stego-db
-    plan: starter
+    plan: free
     databaseName: stego
     user: stego_admin
     postgresMajorVersion: "16"
