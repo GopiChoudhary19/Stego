@@ -1,12 +1,9 @@
 name: CD — Deploy
 
+# Run manually from the Actions tab once the deploy secrets (DEPLOY_HOST, DEPLOY_USER,
+# DEPLOY_KEY, NEXT_PUBLIC_API_URL) and the production environment are configured.
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - '.gitignore'
-      - 'docs/**'
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
