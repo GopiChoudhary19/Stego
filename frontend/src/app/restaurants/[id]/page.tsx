@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import MapPreview from '@/components/MapPreview';
 import api from '@/lib/api';
 import { useCartStore } from '@/stores/cartStore';
-import type { Restaurant, MenuItem, MenuCategory } from '@/lib/types';
+import type { Restaurant, MenuItem } from '@/lib/types';
 import {
   Star, Clock, ArrowLeft, Plus, Minus, Search,
   ShoppingCart, ChefHat, Leaf, Drumstick, Coffee, IceCream, Sandwich
@@ -30,36 +30,30 @@ export default function RestaurantPage({ params }: { params: Promise<{ id: strin
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [menuSearch, setMenuSearch] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
 
   const { items, addItem, updateQuantity, getItemCount, getTotal } = useCartStore();
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    Promise.all([
+      api.get(`/api/restaurants/${id}`),
+      api.get(`/api/restaurants/${id}/menu`),
+    ])
+      .then(([restRes, menuRes]) => {
+        if (cancelled) return;
+        setRestaurant(restRes.data.data);
+        setMenu(menuRes.data.data || []);
+        setError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load this restaurant. It may not exist, or the server is unreachable.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [restRes, menuRes] = await Promise.all([
-        api.get(`/api/restaurants/${id}`),
-        api.get(`/api/restaurants/${id}/menu`),
-      ]);
-      setRestaurant(restRes.data.data);
-      setMenu(menuRes.data.data || []);
-    } catch {
-      // Demo data
-      setRestaurant({
-        id: Number(id), name: 'Vincenzo\'s Italian', description: 'Authentic wood-fired pizzas & Italian favorites. Hand-crafted dough and premium toppings.',
-        address: '45 Brigade Road, Bangalore', latitude: 12.97, longitude: 77.60, phone: '9876543210', imageUrl: '/images/restaurant_italian.png',
-        openingTime: '10:00', closingTime: '22:00', isOpen: true, avgRating: 4.8, totalReviews: 120, createdAt: ''
-      });
-      setMenu(getDemoMenu(Number(id)));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getItemInCart = (menuItemId: number) => items.find(i => i.menuItem.id === menuItemId);
 
@@ -93,7 +87,17 @@ export default function RestaurantPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  if (!restaurant) return null;
+  if (!restaurant) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen pt-28 px-4 text-center">
+          <p className="text-text-secondary font-medium mb-6">{error ?? 'Restaurant not found.'}</p>
+          <button onClick={() => router.push('/restaurants')} className="btn-primary">Back to restaurants</button>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -325,17 +329,4 @@ export default function RestaurantPage({ params }: { params: Promise<{ id: strin
       </main>
     </>
   );
-}
-
-function getDemoMenu(restaurantId: number): MenuItem[] {
-  return [
-    { id: 101, restaurantId, name: 'Butter Chicken', description: 'Creamy tomato-based chicken curry with succulent pieces of roasted chicken.', category: 'NON_VEG' as MenuCategory, price: 320, prepTimeMinutes: 20, imageUrl: '', isAvailable: true },
-    { id: 102, restaurantId, name: 'Paneer Tikka', description: 'Marinated cottage cheese grilled in tandoor with capsicum and onions.', category: 'VEG' as MenuCategory, price: 260, prepTimeMinutes: 15, imageUrl: '', isAvailable: true },
-    { id: 103, restaurantId, name: 'Masala Dosa', description: 'Crispy rice crepe filled with spiced potatoes and served with coconut chutney.', category: 'VEG' as MenuCategory, price: 150, prepTimeMinutes: 10, imageUrl: '', isAvailable: true },
-    { id: 104, restaurantId, name: 'Chicken Biryani', description: 'Fragrant basmati rice cooked with tender chicken and aromatic Indian spices.', category: 'NON_VEG' as MenuCategory, price: 350, prepTimeMinutes: 25, imageUrl: '', isAvailable: true },
-    { id: 105, restaurantId, name: 'Mango Lassi', description: 'Refreshing yogurt and Alfonso mango smoothie served chilled.', category: 'DRINKS' as MenuCategory, price: 120, prepTimeMinutes: 5, imageUrl: '', isAvailable: true },
-    { id: 106, restaurantId, name: 'Gulab Jamun (2pc)', description: 'Deep-fried milk dumplings soaked in cardamom flavored sugar syrup.', category: 'DESSERTS' as MenuCategory, price: 100, prepTimeMinutes: 5, imageUrl: '', isAvailable: true },
-    { id: 107, restaurantId, name: 'Vegetable Samosa', description: 'Crispy pastry filled with spiced potatoes and peas (2 pieces).', category: 'SNACKS' as MenuCategory, price: 60, prepTimeMinutes: 8, imageUrl: '', isAvailable: true },
-    { id: 108, restaurantId, name: 'Executive Thali', description: 'Complete meal with dal makhani, paneer, choice of bread, rice, and salad.', category: 'COMBOS' as MenuCategory, price: 280, prepTimeMinutes: 18, imageUrl: '', isAvailable: true },
-  ];
 }
