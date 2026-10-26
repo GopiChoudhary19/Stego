@@ -19,7 +19,8 @@ public class PaymentWebhookController {
 
     private static final Logger logger = LoggerFactory.getLogger(PaymentWebhookController.class);
 
-    @Value("${stripe.webhook.secret:whsec_xxxxxxxx}")
+    // no default: a known placeholder secret would let anyone sign fake "payment succeeded" events
+    @Value("${stripe.webhook.secret:}")
     private String endpointSecret;
 
     @Autowired
@@ -29,6 +30,11 @@ public class PaymentWebhookController {
     public ResponseEntity<String> handleStripeWebhook(
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader) {
+
+        if (endpointSecret == null || endpointSecret.isBlank()) {
+            logger.error("Rejected Stripe webhook: STRIPE_WEBHOOK_SECRET is not configured");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Webhooks are not configured");
+        }
 
         Event event;
 
