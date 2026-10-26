@@ -7,7 +7,6 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   authStep: 'form' | 'otp';
-  tempAuthData: AuthResponse | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, phone: string, role: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
@@ -21,20 +20,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: typeof window !== 'undefined' && !!localStorage.getItem('accessToken'),
   isLoading: false,
   authStep: 'form',
-  tempAuthData: null,
 
   setAuthStep: (step) => set({ authStep: step }),
 
+  // step 1: the server checks the password and emails a code; it issues no tokens yet
   login: async (email, password) => {
     set({ isLoading: true });
     try {
-      const res = await api.post<{ data: AuthResponse }>('/api/auth/login', { email, password });
-      // Don't set tokens yet, wait for OTP
-      set({ 
-        tempAuthData: res.data.data,
-        authStep: 'otp',
-        isLoading: false 
-      });
+      await api.post('/api/auth/login', { email, password });
+      set({ authStep: 'otp', isLoading: false });
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -44,42 +38,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (name, email, password, phone, role) => {
     set({ isLoading: true });
     try {
-      const res = await api.post<{ data: AuthResponse }>('/api/auth/register', { name, email, password, phone, role });
-      set({ 
-        tempAuthData: res.data.data,
-        authStep: 'otp',
-        isLoading: false 
-      });
+      await api.post('/api/auth/register', { name, email, password, phone, role });
+      set({ authStep: 'otp', isLoading: false });
     } catch (error) {
       set({ isLoading: false });
       throw error;
     }
   },
 
+  // step 2: a correct code is exchanged for the access and refresh tokens
   verifyOtp: async (email, code) => {
     set({ isLoading: true });
     try {
-      await api.post('/api/auth/verify-otp', { email, code });
-      
-      const { tempAuthData } = useAuthStore.getState();
-      if (!tempAuthData) throw new Error("No session data found");
+      const res = await api.post<{ data: AuthResponse }>('/api/auth/verify-otp', { email, code });
+      const auth = res.data.data;
 
-      localStorage.setItem('accessToken', tempAuthData.accessToken);
-      localStorage.setItem('refreshToken', tempAuthData.refreshToken);
-      
+      localStorage.setItem('accessToken', auth.accessToken);
+      localStorage.setItem('refreshToken', auth.refreshToken);
+
       set({
-        user: { 
-          id: tempAuthData.userId, 
-          name: tempAuthData.name, 
-          email: tempAuthData.email, 
-          phone: '', 
-          role: tempAuthData.role, 
-          createdAt: '' 
+        user: {
+          id: auth.userId,
+          name: auth.name,
+          email: auth.email,
+          phone: '',
+          role: auth.role,
+          createdAt: ''
         },
         isAuthenticated: true,
         isLoading: false,
         authStep: 'form',
-        tempAuthData: null
       });
     } catch (error) {
       set({ isLoading: false });
@@ -90,7 +78,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    set({ user: null, isAuthenticated: false, authStep: 'form', tempAuthData: null });
+    set({ user: null, isAuthenticated: false, authStep: 'form' });
   },
 
   loadUser: async () => {

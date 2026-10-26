@@ -22,6 +22,9 @@ spring:
 
 # ── JWT: in-memory dev profile only; any shared or deployed setup must set JWT_SECRET ──
 app:
+  otp:
+    # print sign-in codes to the console; local development has no mail server
+    log-codes: true
   jwt:
     secret: ${JWT_SECRET:c3RlZ29TZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25JbjIwMjQ=}
     expiration-ms: 3600000 # 1 hour for easier dev
