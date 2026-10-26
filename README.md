@@ -61,7 +61,11 @@ defaults: the app and `docker compose` refuse to start without them. Stripe and 
 for local runs; Stripe webhooks are rejected until `STRIPE_WEBHOOK_SECRET` is set.
 
 For a quick look without PostgreSQL, run the backend with the in-memory profile:
-`./mvnw spring-boot:run -Dspring-boot.run.profiles=h2`.
+`./mvnw spring-boot:run -Dspring-boot.run.profiles=h2`. It seeds three restaurants and an owner account
+(`owner@stego.com` / `password123`), and prints sign-in codes to the console because there is no mail server.
+
+Set `ALLOWED_ORIGINS` (origins allowed to call the API and open the WebSocket) and `FRONTEND_URL` (used in
+email links) when the frontend is not on `http://localhost:3000`.
 
 ### 2. Start PostgreSQL
 ```bash
@@ -99,8 +103,9 @@ http://localhost:8080/swagger-ui.html
 ### Authentication
 | Method | Endpoint             | Description              | Auth |
 |--------|----------------------|--------------------------|------|
-| POST   | `/api/auth/register` | Register user/owner      | ❌   |
-| POST   | `/api/auth/login`    | Login & get JWT tokens   | ❌   |
+| POST   | `/api/auth/register` | Register user/owner, email a code | ❌   |
+| POST   | `/api/auth/login`    | Check password, email a code | ❌   |
+| POST   | `/api/auth/verify-otp` | Verify the code, get JWT tokens | ❌   |
 | POST   | `/api/auth/refresh`  | Refresh access token     | ❌   |
 
 ### Users
@@ -187,6 +192,7 @@ This simple model powers the "Order now to save time" feature and will later be 
 ---
 
 ## 🔒 Security Features
+- Two-step sign-in: password, then an emailed one-time code; tokens are only issued after the code is verified
 - BCrypt password hashing
 - JWT access tokens (15 min) + database-backed refresh tokens (7 days)
 - Role-based access control (USER, RESTAURANT_OWNER, ADMIN)
@@ -213,6 +219,8 @@ cd backend
   check and the prep-time estimator.
 - An application-context test that starts the app against PostgreSQL with Flyway migrations and
   `ddl-auto: validate`, exactly as production does, so a migration that drifts from the entities fails CI.
+- An end-to-end HTTP test of the whole flow: sign-up and code verification, restaurant and menu setup, a
+  customer order moving through accept, prepare, ready and complete, and a review.
 
 CI runs the backend tests against a PostgreSQL service, lints and builds the frontend, and builds both Docker
 images. The deploy workflow is manual (`workflow_dispatch`).
