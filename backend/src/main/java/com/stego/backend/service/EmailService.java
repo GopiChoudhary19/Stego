@@ -21,6 +21,9 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @Value("${spring.mail.username:noreply@stego.com}")
     private String fromEmail;
 
@@ -56,7 +59,7 @@ public class EmailService {
 
     public void sendMerchantAlert(Order order) {
         String subject = "🍱 Stego — New Order Alert #" + order.getId();
-        String body = EmailTemplate.getMerchantAlertTemplate(order);
+        String body = EmailTemplate.getMerchantAlertTemplate(order, frontendUrl + "/dashboard");
         sendEmail(order.getRestaurant().getOwner().getEmail(), subject, body);
     }
 }

@@ -40,6 +40,10 @@ server:
 
 # ── JWT Configuration ──
 app:
+  # browser origins allowed to call the REST API and open the WebSocket (comma-separated)
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  # public URL of the frontend, used for links in emails
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: 900000          # 15 minutes

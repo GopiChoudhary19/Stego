@@ -33,6 +33,17 @@ services:
         value: 8080
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      # the frontend's public URL, for CORS, the WebSocket and links in emails
+      - key: ALLOWED_ORIGINS
+        fromService:
+          name: stego-frontend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: FRONTEND_URL
+        fromService:
+          name: stego-frontend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
     healthCheckPath: /actuator/health
 
   # ── Frontend ──
