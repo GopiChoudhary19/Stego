@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import MenuEditor from '@/components/MenuEditor';
 import api from '@/lib/api';
 import type { Order, Restaurant } from '@/lib/types';
 import {
-  ChefHat, Package, CheckCircle, XCircle, Clock,
+  ChefHat, Package, CheckCircle, Clock, HandPlatter,
   TrendingUp, DollarSign, Timer, BarChart3, ListOrdered,
-  Calendar, ArrowUpRight, Zap
+  Calendar, Zap, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -25,76 +25,76 @@ export default function DashboardPage() {
   const [queue, setQueue] = useState<Order[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Mock data for Peak Hours (In real app, fetch from /api/restaurants/{id}/analytics)
-  const hourlyData = [
-    { hour: '10 AM', count: 12 }, { hour: '11 AM', count: 18 }, { hour: '12 PM', count: 45 },
-    { hour: '1 PM', count: 52 }, { hour: '2 PM', count: 30 }, { hour: '3 PM', count: 15 },
-    { hour: '6 PM', count: 25 }, { hour: '7 PM', count: 68 }, { hour: '8 PM', count: 72 },
-    { hour: '9 PM', count: 40 }, { hour: '10 PM', count: 20 },
-  ];
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRestaurants();
+    api.get('/api/restaurants/my')
+      .then((res) => {
+        const data: Restaurant[] = res.data.data || [];
+        setRestaurants(data);
+        if (data.length > 0) setSelectedRestaurant(data[0].id);
+      })
+      .catch(() => setError('Could not load your restaurants. Check that you are signed in as a restaurant owner.'))
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (selectedRestaurant) {
-      fetchQueue();
-      fetchOrders();
-      const interval = setInterval(() => { fetchQueue(); fetchOrders(); }, 8000);
-      return () => clearInterval(interval);
+  const refresh = useCallback(async () => {
+    if (!selectedRestaurant) return;
+    try {
+      const [queueRes, ordersRes] = await Promise.all([
+        api.get(`/api/orders/restaurant/${selectedRestaurant}/queue`),
+        api.get(`/api/orders/restaurant/${selectedRestaurant}`),
+      ]);
+      setQueue(queueRes.data.data || []);
+      setAllOrders(ordersRes.data.data || []);
+      setError(null);
+    } catch {
+      setError('Could not load orders. Retrying every few seconds.');
     }
   }, [selectedRestaurant]);
 
-  const fetchRestaurants = async () => {
-    try {
-      const res = await api.get('/api/restaurants/my');
-      const data = res.data.data || [];
-      setRestaurants(data);
-      if (data.length > 0) setSelectedRestaurant(data[0].id);
-    } catch {
-      // Fallback for dev/demo
-      setRestaurants([{ id: 1, name: 'My Restaurant', description: '', address: '123 Main St', latitude: 0, longitude: 0, phone: '', imageUrl: '', openingTime: '10:00', closingTime: '22:00', isOpen: true, avgRating: 4.5, totalReviews: 50, createdAt: '' }]);
-      setSelectedRestaurant(1);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (!selectedRestaurant) return;
+    const first = setTimeout(refresh, 0);
+    const interval = setInterval(refresh, 8000);
+    return () => { clearTimeout(first); clearInterval(interval); };
+  }, [selectedRestaurant, refresh]);
 
-  const fetchQueue = async () => {
-    try {
-      const res = await api.get(`/api/orders/restaurant/${selectedRestaurant}/queue`);
-      setQueue(res.data.data || []);
-    } catch {
-      setQueue(getDemoQueue());
-    }
-  };
-
-  const fetchOrders = async () => {
-    try {
-      const res = await api.get(`/api/orders/restaurant/${selectedRestaurant}`);
-      setAllOrders(res.data.data || []);
-    } catch {
-      setAllOrders(getDemoQueue());
-    }
-  };
-
-  const handleAction = async (orderId: number, action: string) => {
+  const handleAction = async (orderId: number, action: 'accept' | 'prepare' | 'ready' | 'complete') => {
     try {
       await api.patch(`/api/orders/${orderId}/${action}`);
-      fetchQueue();
-      fetchOrders();
+      await refresh();
     } catch {
-      // ignore
+      setError(`Could not ${action} order #${orderId}. Please try again.`);
     }
   };
+
+  // everything below is computed from this restaurant's real orders
+  const todayOrders = useMemo(() => {
+    const today = new Date().toDateString();
+    return allOrders.filter(o => new Date(o.createdAt).toDateString() === today);
+  }, [allOrders]);
+
+  const hourlyData = useMemo(() => {
+    const counts = new Map<number, number>();
+    todayOrders.forEach(o => {
+      const h = new Date(o.createdAt).getHours();
+      counts.set(h, (counts.get(h) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => a[0] - b[0]).map(([h, count]) => ({
+      hour: `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`, count,
+    }));
+  }, [todayOrders]);
+  const peak = hourlyData.reduce<{ hour: string; count: number } | null>(
+    (best, d) => (!best || d.count > best.count ? d : best), null);
+  const peakCount = peak?.count ?? 0;
 
   const stats = {
     pending: queue.filter(o => o.status === 'PENDING').length,
     preparing: queue.filter(o => o.status === 'PREPARING').length,
-    todayRevenue: allOrders.filter(o => o.status === 'COMPLETED').reduce((s, o) => s + o.totalAmount, 0),
-    totalOrders: allOrders.length,
+    ready: queue.filter(o => o.status === 'READY').length,
+    todayRevenue: todayOrders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.totalAmount, 0),
+    todayOrders: todayOrders.length,
   };
 
   return (
@@ -114,7 +114,9 @@ export default function DashboardPage() {
                    Restaurant <span className="gradient-text">Dashboard</span>
                  </h1>
               </div>
-              <p className="text-text-secondary font-medium">Control center for {restaurants.find(r => r.id === selectedRestaurant)?.name || 'your restaurant'}</p>
+              <p className="text-text-secondary font-medium">
+                {loading ? 'Loading your restaurants...' : `Control center for ${restaurants.find(r => r.id === selectedRestaurant)?.name || 'your restaurant'}`}
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -144,6 +146,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="mb-6 flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+              <AlertTriangle className="w-5 h-5 shrink-0" /> {error}
+            </div>
+          )}
+          {!loading && !error && restaurants.length === 0 && (
+            <div className="card p-10 text-center text-text-secondary font-medium">
+              You don&apos;t have a restaurant yet. Create one to start receiving pre-orders.
+            </div>
+          )}
+
+          {selectedRestaurant && (
           <AnimatePresence mode="wait">
             {activeTab === 'overview' ? (
               <motion.div
@@ -156,10 +170,10 @@ export default function DashboardPage() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   {[
-                    { label: 'Active Queue', value: stats.pending + stats.preparing, icon: Timer, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: '+5 this hour' },
-                    { label: 'Ready Orders', value: queue.filter(o => o.status === 'READY').length, icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', trend: 'Wait for pickup' },
-                    { label: 'Today Orders', value: stats.totalOrders, icon: ListOrdered, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: 'Top 10% region' },
-                    { label: 'Revenue', value: `₹${stats.todayRevenue}`, icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-500/10', trend: '↑ 12% vs yesterday' },
+                    { label: 'Active Queue', value: stats.pending + stats.preparing, icon: Timer, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${stats.pending} new, ${stats.preparing} cooking` },
+                    { label: 'Ready Orders', value: stats.ready, icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', trend: 'Waiting for pickup' },
+                    { label: 'Today Orders', value: stats.todayOrders, icon: ListOrdered, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: 'Placed since midnight' },
+                    { label: "Today's Revenue", value: `₹${stats.todayRevenue}`, icon: DollarSign, color: 'text-orange-500', bg: 'bg-orange-500/10', trend: 'From completed orders' },
                   ].map((stat) => (
                     <div key={stat.label} className="card p-6 relative group overflow-hidden">
                       <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} rounded-full -mr-12 -mt-12 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity`} />
@@ -191,6 +205,11 @@ export default function DashboardPage() {
                           <Calendar className="w-3.5 h-3.5" /> TODAY
                        </div>
                     </div>
+                    {hourlyData.length === 0 ? (
+                      <div className="h-[320px] w-full flex items-center justify-center text-text-muted text-sm font-medium">
+                        No orders yet today.
+                      </div>
+                    ) : (
                     <div className="h-[320px] w-full">
                        <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={hourlyData}>
@@ -208,18 +227,21 @@ export default function DashboardPage() {
                            />
                            <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                              {hourlyData.map((entry, index) => (
-                               <Cell key={`cell-${index}`} fill={entry.count > 50 ? 'var(--color-brand)' : 'var(--color-brand-light)'} />
+                               <Cell key={`cell-${index}`} fill={entry.count === peakCount ? 'var(--color-brand)' : 'var(--color-brand-light)'} />
                              ))}
                            </Bar>
                          </BarChart>
                        </ResponsiveContainer>
                     </div>
+                    )}
+                    {peak && (
                     <div className="mt-6 flex items-center gap-3 p-4 bg-brand/5 rounded-2xl border border-brand/10">
                        <Zap className="w-5 h-5 text-brand fill-brand/20" />
                        <p className="text-sm text-brand-700 font-medium">
-                         <span className="font-bold">Pro Tip:</span> Lunch peaks are hitting 12 PM. Consider prep-ahead tasks at 11:30 AM to reduce wait times.
+                         <span className="font-bold">Busiest hour today:</span> {peak.hour} with {peak.count} order{peak.count === 1 ? '' : 's'}. Prep ahead of it to cut wait times.
                        </p>
                     </div>
+                    )}
                   </div>
 
                   {/* Active Queue Snapshot */}
@@ -244,13 +266,16 @@ export default function DashboardPage() {
                                 <span className="text-xs font-black text-brand bg-brand/10 px-2.5 py-1 rounded-lg">#{order.id}</span>
                                 <div className="flex gap-1">
                                    {order.status === 'PENDING' && (
-                                     <button onClick={() => handleAction(order.id, 'accept')} className="p-1.5 rounded-lg bg-green-500 text-white hover:scale-110 transition-transform shadow-lg shadow-green-500/20"><CheckCircle className="w-3.5 h-3.5" /></button>
+                                     <button onClick={() => handleAction(order.id, 'accept')} title="Accept order" aria-label={`Accept order ${order.id}`} className="p-1.5 rounded-lg bg-green-500 text-white hover:scale-110 transition-transform shadow-lg shadow-green-500/20"><CheckCircle className="w-3.5 h-3.5" /></button>
                                    )}
                                    {order.status === 'ACCEPTED' && (
-                                     <button onClick={() => handleAction(order.id, 'prepare')} className="p-1.5 rounded-lg bg-orange-500 text-white hover:scale-110 transition-transform shadow-lg shadow-orange-500/20"><ChefHat className="w-3.5 h-3.5" /></button>
+                                     <button onClick={() => handleAction(order.id, 'prepare')} title="Start preparing" aria-label={`Start preparing order ${order.id}`} className="p-1.5 rounded-lg bg-orange-500 text-white hover:scale-110 transition-transform shadow-lg shadow-orange-500/20"><ChefHat className="w-3.5 h-3.5" /></button>
                                    )}
                                    {order.status === 'PREPARING' && (
-                                     <button onClick={() => handleAction(order.id, 'ready')} className="p-1.5 rounded-lg bg-brand text-white hover:scale-110 transition-transform shadow-lg shadow-brand/20"><Package className="w-3.5 h-3.5" /></button>
+                                     <button onClick={() => handleAction(order.id, 'ready')} title="Mark ready for pickup" aria-label={`Mark order ${order.id} ready for pickup`} className="p-1.5 rounded-lg bg-brand text-white hover:scale-110 transition-transform shadow-lg shadow-brand/20"><Package className="w-3.5 h-3.5" /></button>
+                                   )}
+                                   {order.status === 'READY' && (
+                                     <button onClick={() => handleAction(order.id, 'complete')} title="Mark picked up" aria-label={`Mark order ${order.id} picked up`} className="p-1.5 rounded-lg bg-slate-800 text-white hover:scale-110 transition-transform shadow-lg"><HandPlatter className="w-3.5 h-3.5" /></button>
                                    )}
                                 </div>
                              </div>
@@ -264,10 +289,6 @@ export default function DashboardPage() {
                       )}
                     </div>
                     
-                    <button className="btn-secondary !w-full !py-3 !rounded-xl !text-xs !bg-white mt-6 group">
-                       View Complete Order History
-                       <ArrowUpRight className="w-3.5 h-3.5 translate-y-0.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -288,38 +309,9 @@ export default function DashboardPage() {
               </motion.div>
             )}
           </AnimatePresence>
+          )}
         </div>
       </main>
     </>
   );
-}
-
-function getDemoQueue(): Order[] {
-  return [
-    {
-      id: 2001, userId: 10, userName: 'Raj Kumar', restaurantId: 1, restaurantName: 'My Restaurant',
-      totalAmount: 580, status: 'PENDING', scheduledPickupTime: '', estimatedReadyTime: new Date(Date.now() + 20 * 60000).toISOString(),
-      actualReadyTime: '', queuePosition: 1, specialInstructions: 'Extra spicy please', paymentMethod: 'UPI', paymentStatus: 'SUCCESS',
-      items: [
-        { id: 1, menuItemId: 101, itemName: 'Butter Chicken', quantity: 2, priceAtOrder: 320 },
-      ], createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-    },
-    {
-      id: 2002, userId: 11, userName: 'Priya Sharma', restaurantId: 1, restaurantName: 'My Restaurant',
-      totalAmount: 410, status: 'PREPARING', scheduledPickupTime: '', estimatedReadyTime: new Date(Date.now() + 10 * 60000).toISOString(),
-      actualReadyTime: '', queuePosition: 2, specialInstructions: '', paymentMethod: 'COD', paymentStatus: 'PENDING',
-      items: [
-        { id: 2, menuItemId: 102, itemName: 'Paneer Tikka', quantity: 1, priceAtOrder: 260 },
-        { id: 3, menuItemId: 103, itemName: 'Masala Dosa', quantity: 1, priceAtOrder: 150 },
-      ], createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-    },
-    {
-      id: 2003, userId: 12, userName: 'Anil Gupta', restaurantId: 1, restaurantName: 'My Restaurant',
-      totalAmount: 220, status: 'ACCEPTED', scheduledPickupTime: '', estimatedReadyTime: new Date(Date.now() + 15 * 60000).toISOString(),
-      actualReadyTime: '', queuePosition: 3, specialInstructions: 'No onions', paymentMethod: 'CARD', paymentStatus: 'SUCCESS',
-      items: [
-        { id: 4, menuItemId: 104, itemName: 'Chole Bhature', quantity: 1, priceAtOrder: 220 },
-      ], createdAt: new Date(Date.now() - 8 * 60000).toISOString(),
-    },
-  ];
 }
