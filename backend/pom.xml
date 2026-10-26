@@ -18,7 +18,7 @@
     <description>Smart Food Pre-Ordering Platform</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>17</java.version>
         <jjwt.version>0.12.5</jjwt.version>
         <lombok.version>1.18.44</lombok.version>
     </properties>

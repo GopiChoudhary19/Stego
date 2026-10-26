@@ -1,6 +1,7 @@
 package com.stego.backend.config;
 
 import com.stego.backend.entity.*;
+import com.stego.backend.enums.MenuCategory;
 import com.stego.backend.enums.Role;
 import com.stego.backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +87,7 @@ public class DataInitializer implements CommandLineRunner {
                 .name("Margherita Pizza")
                 .description("Classic San Marzano sauce, fresh mozzarella, and basil.")
                 .price(new BigDecimal("14.99"))
-                .category("Main")
+                .category(MenuCategory.VEG)
                 .prepTimeMinutes(15)
                 .isAvailable(true)
                 .build());
@@ -96,7 +97,7 @@ public class DataInitializer implements CommandLineRunner {
                 .name("Salmon Buddha Bowl")
                 .description("Quinoa, roasted sweet potato, kale, and fresh salmon.")
                 .price(new BigDecimal("16.50"))
-                .category("Health")
+                .category(MenuCategory.NON_VEG)
                 .prepTimeMinutes(12)
                 .isAvailable(true)
                 .build());
@@ -106,7 +107,7 @@ public class DataInitializer implements CommandLineRunner {
                 .name("Double Trouble Cheeseburger")
                 .description("Two wagyu patties, aged cheddar, and special sauce.")
                 .price(new BigDecimal("18.00"))
-                .category("Burgers")
+                .category(MenuCategory.NON_VEG)
                 .prepTimeMinutes(10)
                 .isAvailable(true)
                 .build());

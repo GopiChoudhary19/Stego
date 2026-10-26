@@ -3,6 +3,8 @@ package com.stego.backend.service;
 import com.stego.backend.dto.request.LoginRequest;
 import com.stego.backend.dto.request.RegisterRequest;
 import com.stego.backend.dto.response.AuthResponse;
+import com.stego.backend.entity.RefreshToken;
+import com.stego.backend.entity.User;
 import com.stego.backend.entity.VerificationCode;
 import com.stego.backend.enums.Role;
 import com.stego.backend.exception.BadRequestException;
@@ -23,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
