@@ -1,8 +1,4 @@
 import axios from 'axios';
-import type { 
-  AuthResponse, ApiResponse, User, Restaurant, MenuItem, 
-  Order, OrderRequest, EstimationResponse, Review 
-} from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 

@@ -50,6 +50,7 @@ export default function MapPreview({ latitude, longitude, address, restaurantNam
 
         <a 
           href={googleMapsUrl}
+          aria-label={`Get directions to ${restaurantName}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-primary !w-full !py-3 !rounded-2xl !text-sm group/btn"

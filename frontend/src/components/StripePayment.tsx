@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   PaymentElement,
   useStripe,
@@ -8,7 +8,7 @@ import {
   Elements,
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { AlertCircle, Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
@@ -18,7 +18,7 @@ interface CheckoutFormProps {
   onError: (msg: string) => void;
 }
 
-function CheckoutForm({ clientSecret, onSuccess, onError }: CheckoutFormProps) {
+function CheckoutForm({ onSuccess, onError }: Omit<CheckoutFormProps, 'clientSecret'>) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -84,7 +84,7 @@ export default function StripePayment({ clientSecret, onSuccess, onError }: Chec
   return (
     <div className="fade-in">
       <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
-        <CheckoutForm clientSecret={clientSecret} onSuccess={onSuccess} onError={onError} />
+        <CheckoutForm onSuccess={onSuccess} onError={onError} />
       </Elements>
     </div>
   );
