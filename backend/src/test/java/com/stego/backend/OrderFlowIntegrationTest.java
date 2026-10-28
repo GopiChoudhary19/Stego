@@ -30,6 +30,9 @@ class OrderFlowIntegrationTest {
     @Autowired
     private com.stego.backend.service.OrderService orderService;
 
+    @Autowired
+    private com.stego.backend.repository.OrderRepository orderRepository;
+
     private final ObjectMapper json = new ObjectMapper();
 
     private JsonNode send(HttpMethod method, String path, Object body, String token, HttpStatus expected) throws Exception {
@@ -104,8 +107,11 @@ class OrderFlowIntegrationTest {
         long cash = send(HttpMethod.POST, "/api/orders", Map.of("restaurantId", restaurant, "paymentMethod", "COD",
                 "items", List.of(Map.of("menuItemId", item, "quantity", 1))), customer, HttpStatus.CREATED).path("id").asLong();
 
-        // the kitchen cannot start on the unpaid card order
+        // the kitchen cannot start on the unpaid card order, and it does not lengthen wait estimates
         send(HttpMethod.PATCH, "/api/orders/" + card + "/accept", null, owner, HttpStatus.BAD_REQUEST);
+        List<Long> kitchen = orderRepository.findKitchenQueue(restaurant,
+                List.of(com.stego.backend.enums.OrderStatus.PENDING)).stream().map(o -> o.getId()).toList();
+        assertEquals(List.of(cash), kitchen);
 
         // a negative age puts the cutoff in the future, so the order just created counts as abandoned
         orderService.cancelAbandonedOnlineOrders(java.time.Duration.ofMinutes(-1));
