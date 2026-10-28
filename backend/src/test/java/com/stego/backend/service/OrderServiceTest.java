@@ -7,9 +7,12 @@ import com.stego.backend.entity.User;
 import com.stego.backend.enums.OrderStatus;
 import com.stego.backend.enums.PaymentMethod;
 import com.stego.backend.enums.PaymentStatus;
+import com.stego.backend.exception.BadRequestException;
 import com.stego.backend.repository.OrderRepository;
 import com.stego.backend.repository.PaymentRepository;
 import com.stego.backend.repository.RestaurantRepository;
+import com.stripe.exception.ApiConnectionException;
+import com.stripe.exception.StripeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -53,10 +56,14 @@ class OrderServiceTest {
         user.setId(7L);
         Restaurant restaurant = new Restaurant();
         restaurant.setId(3L);
+        User owner = new User();
+        owner.setId(5L);
+        restaurant.setOwner(owner);
         order = Order.builder().user(user).restaurant(restaurant).totalAmount(new BigDecimal("500.00")).build();
         order.setId(ORDER_ID);
         payment = Payment.builder().order(order).amount(new BigDecimal("500.00")).paymentMethod(PaymentMethod.CARD).build();
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(paymentRepository.findByOrderId(ORDER_ID)).thenReturn(Optional.of(payment));
         when(paymentRepository.findByTransactionId(anyString())).thenReturn(Optional.empty());
     }
@@ -94,12 +101,78 @@ class OrderServiceTest {
     }
 
     @Test
-    void paymentFailureCancelsUnpaidOrder() {
+    void paymentFailureKeepsOrderOpenSoTheCustomerCanRetry() {
         orderService.handlePaymentFailure(ORDER_ID);
 
         assertEquals(PaymentStatus.FAILED, payment.getStatus());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void retryAfterDeclinedCardStillCompletesThePayment() {
+        orderService.handlePaymentFailure(ORDER_ID);
+        orderService.handlePaymentSuccess(ORDER_ID, TXN);
+
+        assertEquals(PaymentStatus.SUCCESS, payment.getStatus());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+        verify(emailService).sendOrderConfirmation(order);
+    }
+
+    @Test
+    void paymentArrivingForCancelledOrderIsRefunded() throws StripeException {
+        order.setStatus(OrderStatus.CANCELLED);
+
+        orderService.handlePaymentSuccess(ORDER_ID, TXN);
+
+        verify(paymentService).refund(TXN);
+        assertEquals(PaymentStatus.REFUNDED, payment.getStatus());
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void cancellingPaidOrderRefundsThroughStripe() throws StripeException {
+        payment.setStatus(PaymentStatus.SUCCESS);
+        payment.setTransactionId(TXN);
+
+        orderService.cancelOrder(ORDER_ID, 7L);
+
+        verify(paymentService).refund(TXN);
+        assertEquals(PaymentStatus.REFUNDED, payment.getStatus());
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
-        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void failedStripeRefundIsNotRecordedAsRefunded() throws StripeException {
+        payment.setStatus(PaymentStatus.SUCCESS);
+        payment.setTransactionId(TXN);
+        doThrow(new ApiConnectionException("stripe down")).when(paymentService).refund(TXN);
+
+        assertThrows(BadRequestException.class, () -> orderService.cancelOrder(ORDER_ID, 7L));
+        assertEquals(PaymentStatus.SUCCESS, payment.getStatus());
+    }
+
+    @Test
+    void paidOrderCannotGetASecondPaymentIntent() throws StripeException {
+        payment.setStatus(PaymentStatus.SUCCESS);
+
+        assertThrows(BadRequestException.class, () -> orderService.createPaymentIntent(ORDER_ID, 7L));
+        verify(paymentService, never()).createPaymentIntent(any());
+    }
+
+    @Test
+    void cashOrderCannotGetAPaymentIntent() throws StripeException {
+        payment.setPaymentMethod(PaymentMethod.COD);
+
+        assertThrows(BadRequestException.class, () -> orderService.createPaymentIntent(ORDER_ID, 7L));
+        verify(paymentService, never()).createPaymentIntent(any());
+    }
+
+    @Test
+    void unpaidCardOrderGetsAPaymentIntent() throws StripeException {
+        when(paymentService.createPaymentIntent(order)).thenReturn("secret");
+
+        assertEquals("secret", orderService.createPaymentIntent(ORDER_ID, 7L));
     }
 
     @Test

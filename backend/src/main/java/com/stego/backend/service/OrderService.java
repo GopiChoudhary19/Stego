@@ -115,6 +115,9 @@ public class OrderService {
             order.getItems().add(orderItem);
         }
 
+        if (total.signum() <= 0) {
+            throw new BadRequestException("Order total must be greater than zero");
+        }
         order.setTotalAmount(total);
 
         // Queue logic: heuristic-based wait time
@@ -304,8 +307,7 @@ public class OrderService {
 
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
         if (payment != null && payment.getStatus() == PaymentStatus.SUCCESS) {
-            payment.setStatus(PaymentStatus.REFUNDED);
-            paymentRepository.save(payment);
+            refundPayment(payment);
         }
 
         OrderResponse response = mapToResponse(order, payment);
@@ -314,6 +316,23 @@ public class OrderService {
     }
 
     // ── Helpers ──
+
+    // Marks the payment REFUNDED only after Stripe accepted the refund; a Stripe error rolls the whole transaction back.
+    private void refundPayment(Payment payment) {
+        if (payment.getPaymentMethod() != PaymentMethod.COD) {
+            if (payment.getTransactionId() == null) {
+                throw new BadRequestException("Payment has no Stripe transaction to refund");
+            }
+            try {
+                paymentService.refund(payment.getTransactionId());
+            } catch (StripeException e) {
+                logger.error("Refund failed for payment {}: {}", payment.getId(), e.getMessage());
+                throw new BadRequestException("The refund could not be issued, please try again");
+            }
+        }
+        payment.setStatus(PaymentStatus.REFUNDED);
+        paymentRepository.save(payment);
+    }
 
     private OrderResponse transitionOrder(Long orderId, Long ownerId, OrderStatus expectedCurrent, OrderStatus newStatus) {
         Order order = getOrderForOwner(orderId, ownerId);
@@ -384,6 +403,15 @@ public class OrderService {
             throw new BadRequestException("Cannot pay for a " + order.getStatus() + " order");
         }
 
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", orderId));
+        if (payment.getPaymentMethod() == PaymentMethod.COD) {
+            throw new BadRequestException("This order is paid in cash on pickup");
+        }
+        if (payment.getStatus() == PaymentStatus.SUCCESS || payment.getStatus() == PaymentStatus.REFUNDED) {
+            throw new BadRequestException("This order has already been paid");
+        }
+
         return paymentService.createPaymentIntent(order);
     }
 
@@ -412,9 +440,15 @@ public class OrderService {
             paymentRepository.save(payment);
             logger.info("Payment SUCCESS for order: {}, transaction: {}", orderId, transactionId);
             
-            // Phase 5: Send confirmation only after online payment success
-            emailService.sendOrderConfirmation(order);
-            emailService.sendMerchantAlert(order);
+            // the customer paid for an order that was cancelled meanwhile: give the money back
+            if (order.getStatus() == OrderStatus.CANCELLED) {
+                logger.warn("Order {} was cancelled before payment {} arrived, refunding", orderId, transactionId);
+                refundPayment(payment);
+            } else {
+                // Phase 5: Send confirmation only after online payment success
+                emailService.sendOrderConfirmation(order);
+                emailService.sendMerchantAlert(order);
+            }
         }
 
         // Auto-accept if payment is success (or keep PENDING for restaurant to manual accept)
@@ -441,9 +475,8 @@ public class OrderService {
             logger.error("Payment FAILED for order: {}", orderId);
         }
 
-        order.setStatus(OrderStatus.CANCELLED);
-        orderRepository.save(order);
-
+        // A declined attempt leaves the PaymentIntent open and the customer can retry on the same checkout,
+        // so the order stays as it is; cancelling here would leave a later successful retry paid but cancelled.
         OrderResponse response = mapToResponse(order, payment);
         messagingTemplate.convertAndSend("/topic/user/" + order.getUser().getId() + "/orders", response);
     }

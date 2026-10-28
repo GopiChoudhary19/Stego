@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -21,6 +22,9 @@ public class EstimationService {
     @Autowired
     private OrderRepository orderRepository;
 
+    // replaceable in tests so the peak-hour check and minute arithmetic are deterministic
+    Clock clock = Clock.systemDefaultZone();
+
     /**
      * Smart wait-time estimation for order ready time.
      * Logic:
@@ -29,7 +33,7 @@ public class EstimationService {
      * 3. Historical delay factor (actual vs estimated for this restaurant).
      */
     public LocalDateTime estimateReadyTime(Restaurant restaurant, int maxItemPrepTime) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalTime time = now.toLocalTime();
 
         // 1. Queue-Item Density Factor
@@ -56,14 +60,12 @@ public class EstimationService {
                 restaurant.getId(), 
                 org.springframework.data.domain.PageRequest.of(0, 5)
         );
-        double avgDelayMinutes = 0;
-        if (!recentOrders.isEmpty()) {
-            long totalDelaySec = recentOrders.stream()
-                    .filter(o -> o.getActualReadyTime() != null && o.getEstimatedReadyTime() != null)
-                    .mapToLong(o -> java.time.Duration.between(o.getEstimatedReadyTime(), o.getActualReadyTime()).getSeconds())
-                    .sum();
-            avgDelayMinutes = (totalDelaySec / (double) recentOrders.size()) / 60.0;
-        }
+        // average only over orders that have both timestamps, otherwise missing data drags the delay toward zero
+        double avgDelayMinutes = recentOrders.stream()
+                .filter(o -> o.getActualReadyTime() != null && o.getEstimatedReadyTime() != null)
+                .mapToLong(o -> java.time.Duration.between(o.getEstimatedReadyTime(), o.getActualReadyTime()).getSeconds())
+                .average()
+                .orElse(0) / 60.0;
 
         // 4. Final Heuristic
         // (base + queue density) * peak_multiplier + historical error margin
