@@ -23,6 +23,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -123,6 +124,14 @@ public class AuthService {
                 user.getName(), user.getEmail(), user.getRole().name());
     }
 
+    /** Signs the user out everywhere: their refresh tokens stop working, access tokens simply expire. */
+    public void logout(Long userId) {
+        refreshTokenService.deleteByUserId(userId);
+    }
+
+    // RefreshToken.user is lazy and open-in-view is off, so without a transaction reading the user threw
+    // LazyInitializationException and every refresh answered 500. An expired token is still deleted.
+    @Transactional(noRollbackFor = BadRequestException.class)
     public AuthResponse refreshToken(String requestRefreshToken) {
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
