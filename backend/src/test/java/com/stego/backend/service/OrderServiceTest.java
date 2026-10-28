@@ -214,6 +214,23 @@ class OrderServiceTest {
     }
 
     @Test
+    void unpaidOnlineOrderCannotBeAccepted() {
+        assertThrows(BadRequestException.class, () -> orderService.acceptOrder(ORDER_ID, 5L));
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+    }
+
+    @Test
+    void paidOnlineOrderAndCashOrderCanBeAccepted() {
+        payment.setStatus(PaymentStatus.SUCCESS);
+        assertEquals(OrderStatus.ACCEPTED, orderService.acceptOrder(ORDER_ID, 5L).getStatus());
+
+        order.setStatus(OrderStatus.PENDING);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setPaymentMethod(PaymentMethod.COD);
+        assertEquals(OrderStatus.ACCEPTED, orderService.acceptOrder(ORDER_ID, 5L).getStatus());
+    }
+
+    @Test
     void openingHoursWithinOneDay() {
         LocalTime open = LocalTime.of(10, 0), close = LocalTime.of(22, 0);
         assertTrue(OrderService.isWithinOpeningHours(LocalTime.of(10, 0), open, close));

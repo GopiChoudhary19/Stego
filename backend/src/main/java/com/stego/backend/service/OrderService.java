@@ -234,6 +234,14 @@ public class OrderService {
 
     @Transactional
     public OrderResponse acceptOrder(Long orderId, Long ownerId) {
+        // online orders join the queue as soon as they are created; the kitchen must not start on one that
+        // was never paid (the customer may have abandoned the payment page)
+        Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
+        if (payment != null && payment.getPaymentMethod() != PaymentMethod.COD
+                && payment.getStatus() != PaymentStatus.SUCCESS) {
+            getOrderForOwner(orderId, ownerId);
+            throw new BadRequestException("Waiting for the customer's online payment before this order can be accepted");
+        }
         return transitionOrder(orderId, ownerId, OrderStatus.PENDING, OrderStatus.ACCEPTED);
     }
 

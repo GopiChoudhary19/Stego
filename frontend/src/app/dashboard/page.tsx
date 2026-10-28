@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import MenuEditor from '@/components/MenuEditor';
 import api from '@/lib/api';
@@ -18,6 +18,9 @@ import {
 
 type Tab = 'overview' | 'menu';
 
+// card and UPI orders must be paid before the kitchen starts on them; the server refuses to accept them earlier
+const awaitingPayment = (order: Order) => order.paymentMethod !== 'COD' && order.paymentStatus !== 'SUCCESS';
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -26,6 +29,7 @@ export default function DashboardPage() {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequest = useRef(0);
 
   useEffect(() => {
     api.get('/api/restaurants/my')
@@ -40,11 +44,14 @@ export default function DashboardPage() {
 
   const refresh = useCallback(async () => {
     if (!selectedRestaurant) return;
+    const requestId = ++latestRequest.current;
     try {
       const [queueRes, ordersRes] = await Promise.all([
         api.get(`/api/orders/restaurant/${selectedRestaurant}/queue`),
         api.get(`/api/orders/restaurant/${selectedRestaurant}`),
       ]);
+      // after switching restaurants, a late answer for the previous one must not replace this one's orders
+      if (requestId !== latestRequest.current) return;
       setQueue(queueRes.data.data || []);
       setAllOrders(ordersRes.data.data || []);
       setError(null);
@@ -64,8 +71,9 @@ export default function DashboardPage() {
     try {
       await api.patch(`/api/orders/${orderId}/${action}`);
       await refresh();
-    } catch {
-      setError(`Could not ${action} order #${orderId}. Please try again.`);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || `Could not ${action} order #${orderId}. Please try again.`);
     }
   };
 
@@ -265,7 +273,10 @@ export default function DashboardPage() {
                              <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs font-black text-brand bg-brand/10 px-2.5 py-1 rounded-lg">#{order.id}</span>
                                 <div className="flex gap-1">
-                                   {order.status === 'PENDING' && (
+                                   {order.status === 'PENDING' && awaitingPayment(order) && (
+                                     <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-2 py-1 rounded-lg" title="The customer has not completed the online payment yet">Awaiting payment</span>
+                                   )}
+                                   {order.status === 'PENDING' && !awaitingPayment(order) && (
                                      <button onClick={() => handleAction(order.id, 'accept')} title="Accept order" aria-label={`Accept order ${order.id}`} className="p-1.5 rounded-lg bg-green-500 text-white hover:scale-110 transition-transform shadow-lg shadow-green-500/20"><CheckCircle className="w-3.5 h-3.5" /></button>
                                    )}
                                    {order.status === 'ACCEPTED' && (
