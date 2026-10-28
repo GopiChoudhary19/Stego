@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
@@ -26,42 +26,55 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { addItem, clearCart } = useCartStore();
+  const { addItem, updateQuantity, clearCart } = useCartStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [tab, setTab] = useState<'live' | 'history'>('live');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // a slow response for the previous tab must not overwrite the list of the tab now shown
+  const latestRequest = useRef(0);
 
-  const handleReorder = (order: Order) => {
+  const handleReorder = async (order: Order) => {
+    // rebuild the cart from today's menu: the old order's prices may have changed (the server charges the
+    // current price) and some items may no longer be available
+    let menu: MenuItem[];
+    try {
+      const res = await api.get(`/api/restaurants/${order.restaurantId}/menu`);
+      menu = res.data.data || [];
+    } catch {
+      setError('Could not load the current menu for this restaurant. Please try again.');
+      return;
+    }
+    const current = new Map(menu.map((m) => [m.id, m]));
+    const available = order.items.filter((item) => current.has(item.menuItemId));
+    if (available.length === 0) {
+      setError(`None of the items from order #${order.id} are available right now.`);
+      return;
+    }
     clearCart();
-    order.items.forEach(item => {
-      // Create a dummy MenuItem object for the cart store
-      const menuItem: MenuItem = {
-        id: item.menuItemId,
-        name: item.itemName,
-        price: item.priceAtOrder,
-        description: '',
-        imageUrl: '',
-        isAvailable: true,
-        restaurantId: order.restaurantId,
-        prepTimeMinutes: 15,
-        category: 'VEG'
-      };
-      addItem(menuItem, order.restaurantName);
+    available.forEach((item) => {
+      addItem(current.get(item.menuItemId)!, order.restaurantName);
+      updateQuantity(item.menuItemId, item.quantity);
     });
+    if (available.length < order.items.length) {
+      const missing = order.items.filter((item) => !current.has(item.menuItemId)).map((item) => item.itemName);
+      alert(`Some items are no longer available and were left out: ${missing.join(', ')}`);
+    }
     router.push('/cart');
   };
 
   const fetchOrders = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     try {
       const endpoint = tab === 'live' ? '/api/orders/live' : '/api/orders';
       const res = await api.get(endpoint);
+      if (requestId !== latestRequest.current) return;
       setOrders(res.data.data || []);
       setError(null);
     } catch {
-      setError('Could not load your orders. Retrying shortly.');
+      if (requestId === latestRequest.current) setError('Could not load your orders. Retrying shortly.');
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, [tab]);
 
