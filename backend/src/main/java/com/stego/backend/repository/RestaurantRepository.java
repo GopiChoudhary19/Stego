@@ -38,6 +38,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
             @Param("radiusKm") double radiusKm
     );
 
-    @Query("SELECT r FROM Restaurant r WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) AND r.isActive = true")
+    // :query must already have LIKE wildcards escaped with '!' (see RestaurantService.searchRestaurants)
+    @Query("SELECT r FROM Restaurant r WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '!' AND r.isActive = true")
     List<Restaurant> searchByName(@Param("query") String query);
 }
