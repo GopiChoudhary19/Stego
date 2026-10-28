@@ -1,6 +1,9 @@
 package com.stego.backend.dto.request;
 
 import com.stego.backend.enums.PaymentMethod;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -15,6 +18,7 @@ public class OrderRequest {
     private Long restaurantId;
 
     @NotEmpty(message = "Order must contain at least one item")
+    @Valid
     private List<OrderItemRequest> items;
 
     private LocalDateTime scheduledPickupTime;
@@ -30,6 +34,8 @@ public class OrderRequest {
         private Long menuItemId;
 
         @NotNull(message = "Quantity is required")
+        @Min(value = 1, message = "Quantity must be at least 1")
+        @Max(value = 50, message = "Quantity must be at most 50")
         private Integer quantity;
     }
 }
