@@ -39,8 +39,15 @@ class EmailTemplateTest {
 
     @Test
     void confirmationEscapesRestaurantAndItemText() {
-        String html = EmailTemplate.getOrderConfirmationTemplate(order());
+        String html = EmailTemplate.getOrderConfirmationTemplate(order(), true);
         assertFalse(html.contains("<script>") || html.contains("<img src=x>") || html.contains("<b>Tasty</b>"));
         assertTrue(html.contains("&lt;script&gt;x&lt;/script&gt;"));
+    }
+
+    @Test
+    void cashOrderConfirmationDoesNotClaimThePaymentWasMade() {
+        assertTrue(EmailTemplate.getOrderConfirmationTemplate(order(), false).contains("TO PAY AT PICKUP"));
+        assertFalse(EmailTemplate.getOrderConfirmationTemplate(order(), false).contains("TOTAL PAID"));
+        assertTrue(EmailTemplate.getOrderConfirmationTemplate(order(), true).contains("TOTAL PAID"));
     }
 }

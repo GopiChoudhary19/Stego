@@ -148,7 +148,7 @@ public class OrderService {
 
         // Phase 5: Send immediate email for COD orders
         if (request.getPaymentMethod() == PaymentMethod.COD) {
-            emailService.sendOrderConfirmation(order);
+            emailService.sendOrderConfirmation(order, false);
             emailService.sendMerchantAlert(order);
             logger.info("COD Order {} confirmation emails sent.", order.getId());
         }
@@ -454,7 +454,7 @@ public class OrderService {
                 refundPayment(payment);
             } else {
                 // Phase 5: Send confirmation only after online payment success
-                emailService.sendOrderConfirmation(order);
+                emailService.sendOrderConfirmation(order, true);
                 emailService.sendMerchantAlert(order);
             }
         }
