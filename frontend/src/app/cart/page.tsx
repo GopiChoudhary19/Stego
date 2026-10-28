@@ -30,6 +30,9 @@ export default function CartPage() {
   // Stripe flow
   const [showStripe, setShowStripe] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
+  // the order already created for this cart, so retrying a failed payment step does not place a second order
+  const [placedOrder, setPlacedOrder] = useState<{ id: number; key: string } | null>(null);
+  const cartKey = `${paymentMethod}|${items.map(i => `${i.menuItem.id}x${i.quantity}`).join(',')}`;
 
   // Fetch live estimation when cart changes
   useEffect(() => {
@@ -84,17 +87,22 @@ export default function CartPage() {
     setPlacing(true);
     setError('');
     try {
-      const res = await api.post('/api/orders', {
-        restaurantId: items[0]?.menuItem.restaurantId,
-        items: items.map(i => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
-        paymentMethod,
-        specialInstructions: specialInstructions || undefined,
-      });
+      let orderId = placedOrder?.key === cartKey ? placedOrder.id : null;
+      if (orderId === null) {
+        const res = await api.post('/api/orders', {
+          restaurantId: items[0]?.menuItem.restaurantId,
+          items: items.map(i => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
+          paymentMethod,
+          specialInstructions: specialInstructions || undefined,
+        });
+        orderId = res.data.data.id as number;
+        setPlacedOrder({ id: orderId, key: cartKey });
+      }
 
-      const order = res.data.data;
-
-      if (paymentMethod === 'CARD') {
-        const intentRes = await api.post(`/api/orders/${order.id}/payment-intent`);
+      // every method except cash is collected online through Stripe (its payment element offers UPI too);
+      // treating UPI like cash used to confirm the order without ever charging the customer
+      if (paymentMethod !== 'COD') {
+        const intentRes = await api.post(`/api/orders/${orderId}/payment-intent`);
         setClientSecret(intentRes.data.data.clientSecret);
         setShowStripe(true);
       } else {
