@@ -214,6 +214,17 @@ class OrderServiceTest {
     }
 
     @Test
+    void abandonedOnlinePaymentCancelsTheOrder() {
+        when(paymentRepository.findAbandonedOnlinePayments(any())).thenReturn(List.of(payment));
+
+        assertEquals(1, orderService.cancelAbandonedOnlineOrders(java.time.Duration.ofMinutes(30)));
+
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        assertEquals(PaymentStatus.FAILED, payment.getStatus());
+        verify(messagingTemplate).convertAndSend(eq("/topic/user/7/orders"), any(Object.class));
+    }
+
+    @Test
     void unpaidOnlineOrderCannotBeAccepted() {
         assertThrows(BadRequestException.class, () -> orderService.acceptOrder(ORDER_ID, 5L));
         assertEquals(OrderStatus.PENDING, order.getStatus());

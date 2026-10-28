@@ -27,6 +27,9 @@ class OrderFlowIntegrationTest {
     @Autowired
     private VerificationCodeRepository codes;
 
+    @Autowired
+    private com.stego.backend.service.OrderService orderService;
+
     private final ObjectMapper json = new ObjectMapper();
 
     private JsonNode send(HttpMethod method, String path, Object body, String token, HttpStatus expected) throws Exception {
@@ -85,6 +88,30 @@ class OrderFlowIntegrationTest {
         send(HttpMethod.PUT, "/api/users/me", "{\"name\": null}", token, HttpStatus.BAD_REQUEST);
         assertEquals("New Name", send(HttpMethod.PUT, "/api/users/me", "{\"name\": \" New Name \"}", token, HttpStatus.OK)
                 .path("name").asText());
+    }
+
+    @Test
+    void unpaidCardOrdersExpireButCashOrdersStay() throws Exception {
+        String owner = signUp("expiry-owner@example.test", "RESTAURANT_OWNER");
+        String customer = signUp("expiry-customer@example.test", "USER");
+        long restaurant = send(HttpMethod.POST, "/api/restaurants",
+                Map.of("name", "Expiry Kitchen", "address", "2 Test Street"), owner, HttpStatus.CREATED).path("id").asLong();
+        long item = send(HttpMethod.POST, "/api/restaurants/" + restaurant + "/menu",
+                Map.of("name", "Dosa", "category", "VEG", "price", 80, "prepTimeMinutes", 10),
+                owner, HttpStatus.CREATED).path("id").asLong();
+        long card = send(HttpMethod.POST, "/api/orders", Map.of("restaurantId", restaurant, "paymentMethod", "CARD",
+                "items", List.of(Map.of("menuItemId", item, "quantity", 1))), customer, HttpStatus.CREATED).path("id").asLong();
+        long cash = send(HttpMethod.POST, "/api/orders", Map.of("restaurantId", restaurant, "paymentMethod", "COD",
+                "items", List.of(Map.of("menuItemId", item, "quantity", 1))), customer, HttpStatus.CREATED).path("id").asLong();
+
+        // the kitchen cannot start on the unpaid card order
+        send(HttpMethod.PATCH, "/api/orders/" + card + "/accept", null, owner, HttpStatus.BAD_REQUEST);
+
+        // a negative age puts the cutoff in the future, so the order just created counts as abandoned
+        orderService.cancelAbandonedOnlineOrders(java.time.Duration.ofMinutes(-1));
+
+        assertEquals("CANCELLED", send(HttpMethod.GET, "/api/orders/" + card, null, customer, HttpStatus.OK).path("status").asText());
+        assertEquals("PENDING", send(HttpMethod.GET, "/api/orders/" + cash, null, customer, HttpStatus.OK).path("status").asText());
     }
 
     @Test
