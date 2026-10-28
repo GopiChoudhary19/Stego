@@ -38,7 +38,8 @@ public class EstimationService {
 
         // 1. Queue-Item Density Factor
         List<OrderStatus> activeStatuses = List.of(OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.PREPARING);
-        List<Order> activeOrders = orderRepository.findByRestaurantIdAndStatusInOrderByQueuePositionAsc(restaurant.getId(), activeStatuses);
+        // unpaid online orders may never be cooked, so they must not lengthen everyone else's estimate
+        List<Order> activeOrders = orderRepository.findKitchenQueue(restaurant.getId(), activeStatuses);
         
         long totalItemsInQueue = activeOrders.stream()
                 .flatMap(o -> o.getItems().stream())
