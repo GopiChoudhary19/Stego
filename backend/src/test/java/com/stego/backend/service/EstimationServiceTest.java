@@ -41,7 +41,7 @@ public class EstimationServiceTest {
         MockitoAnnotations.openMocks(this);
         restaurant = new Restaurant();
         restaurant.setId(1L);
-        when(orderRepository.findByRestaurantIdAndStatusInOrderByQueuePositionAsc(anyLong(), any()))
+        when(orderRepository.findKitchenQueue(anyLong(), any()))
                 .thenReturn(Collections.emptyList());
         when(orderRepository.findRecentCompletedOrders(anyLong(), any(Pageable.class)))
                 .thenReturn(Collections.emptyList());
@@ -75,7 +75,7 @@ public class EstimationServiceTest {
     @Test
     void queuedItemsAddTwoAndAHalfMinutesEach() {
         LocalDateTime now = at(10, 30);
-        when(orderRepository.findByRestaurantIdAndStatusInOrderByQueuePositionAsc(anyLong(), any()))
+        when(orderRepository.findKitchenQueue(anyLong(), any()))
                 .thenReturn(List.of(orderWithItems(2), orderWithItems(2)));
 
         // 20 prep + 4 items * 2.5

@@ -27,4 +27,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT COALESCE(MAX(o.queuePosition), 0) FROM Order o WHERE o.restaurant.id = :restaurantId AND o.status IN :statuses")
     int findMaxQueuePosition(@Param("restaurantId") Long restaurantId, @Param("statuses") List<OrderStatus> statuses);
+
+    // orders the kitchen will actually cook: card/UPI orders whose payment has not succeeded are left out
+    @Query("SELECT o FROM Order o WHERE o.restaurant.id = :restaurantId AND o.status IN :statuses AND NOT EXISTS ("
+            + "SELECT p FROM Payment p WHERE p.order = o AND p.paymentMethod <> com.stego.backend.enums.PaymentMethod.COD"
+            + " AND p.status <> com.stego.backend.enums.PaymentStatus.SUCCESS)")
+    List<Order> findKitchenQueue(@Param("restaurantId") Long restaurantId, @Param("statuses") List<OrderStatus> statuses);
 }
