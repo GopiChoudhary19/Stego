@@ -109,6 +109,7 @@ http://localhost:8080/swagger-ui.html
 | POST   | `/api/auth/login`    | Check password, email a code | ❌   |
 | POST   | `/api/auth/verify-otp` | Verify the code, get JWT tokens | ❌   |
 | POST   | `/api/auth/refresh`  | Refresh access token     | ❌   |
+| POST   | `/api/auth/logout`   | Revoke refresh tokens    | ✅   |
 
 ### Users
 | Method | Endpoint         | Description        | Auth |
@@ -150,6 +151,12 @@ http://localhost:8080/swagger-ui.html
 | PATCH  | `/api/orders/{id}/prepare`              | Mark as preparing        | 🔒 Owner|
 | PATCH  | `/api/orders/{id}/ready`                | Mark as ready            | 🔒 Owner|
 | PATCH  | `/api/orders/{id}/complete`             | Mark as completed        | 🔒 Owner|
+| POST   | `/api/orders/{id}/payment-intent`       | Start card/UPI payment   | ✅      |
+
+Payment rules: card and UPI orders are paid through Stripe and can only be accepted by the kitchen once the
+payment has succeeded; if it hasn't succeeded 30 minutes after the order was placed, the order is cancelled.
+Cancelling a paid order (or a payment that arrives for an already cancelled order) issues a Stripe refund.
+Cash orders are confirmed immediately and marked paid when the owner completes them.
 
 ### Reviews
 | Method | Endpoint                          | Description            | Auth |
@@ -198,13 +205,16 @@ This simple model powers the "Order now to save time" feature and will later be 
 - BCrypt password hashing
 - JWT access tokens (15 min) + database-backed refresh tokens (7 days)
 - Role-based access control (USER, RESTAURANT_OWNER, ADMIN)
-- Per-email rate limiting on login (10 attempts/minute via Bucket4j)
+- Per-email rate limiting on login (10 attempts/minute via Bucket4j), at most 3 sign-in codes per 15 minutes,
+  and a code is burned after 5 wrong guesses
 - CORS configured for frontend origins
 
 ---
 
 ## 📡 Real-Time Updates
-WebSocket endpoints (STOMP over SockJS):
+WebSocket endpoints (STOMP over SockJS). Send the access token as a STOMP `CONNECT` header
+(`Authorization: Bearer <token>`); a user may subscribe only to their own topic, an owner only to their
+restaurants' topics, and clients cannot publish.
 - `/topic/restaurant/{id}/orders` — Restaurant receives new/updated orders
 - `/topic/user/{id}/orders` — User receives order status changes
 
@@ -217,12 +227,14 @@ cd backend
 ./mvnw verify        # needs PostgreSQL; set DB_HOST / DB_PASSWORD as in CI
 ```
 
-- Unit tests for order payment handling (duplicate and late Stripe events), the Stripe webhook signature
-  check and the prep-time estimator.
+- Unit tests for order payment handling (duplicate and late Stripe events, refunds, retries after a
+  declined card), the Stripe webhook signature check, the sign-in code limits, WebSocket subscription rules,
+  request validation, email escaping and the prep-time estimator (with a fixed clock).
 - An application-context test that starts the app against PostgreSQL with Flyway migrations and
   `ddl-auto: validate`, exactly as production does, so a migration that drifts from the entities fails CI.
 - An end-to-end HTTP test of the whole flow: sign-up and code verification, restaurant and menu setup, a
-  customer order moving through accept, prepare, ready and complete, and a review.
+  customer order moving through accept, prepare, ready and complete, and a review; plus logout, token
+  refresh, profile validation, nearby and name search, and expiry of unpaid card orders.
 
 CI runs the backend tests against a PostgreSQL service, lints and builds the frontend, and builds both Docker
 images. The deploy workflow is manual (`workflow_dispatch`).
