@@ -31,7 +31,7 @@ public class EmailTemplate {
                 "</div></body></html>";
     }
 
-    public static String getOrderConfirmationTemplate(Order order) {
+    public static String getOrderConfirmationTemplate(Order order, boolean paid) {
         StringBuilder itemsHtml = new StringBuilder();
         for (OrderItem item : order.getItems()) {
             itemsHtml.append("<tr>")
@@ -65,7 +65,7 @@ public class EmailTemplate {
                 "    <tbody>" + itemsHtml.toString() + "</tbody>" +
                 "  </table>" +
                 "  <div style='display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; border-top: 2px solid #333; pt: 15px;'>" +
-                "    <span>TOTAL PAID</span>" +
+                "    <span>" + (paid ? "TOTAL PAID" : "TO PAY AT PICKUP") + "</span>" +
                 "    <span style='color: " + BRAND_COLOR + ";'>₹" + order.getTotalAmount() + "</span>" +
                 "  </div>" +
                 "  <p style='margin-top: 30px; font-size: 13px; color: #6c757d; text-align: center;'>" +

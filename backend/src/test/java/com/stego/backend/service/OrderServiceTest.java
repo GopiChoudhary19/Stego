@@ -76,7 +76,7 @@ class OrderServiceTest {
         assertEquals(TXN, payment.getTransactionId());
         assertNotNull(payment.getPaidAt());
         verify(paymentRepository).save(payment);
-        verify(emailService).sendOrderConfirmation(order);
+        verify(emailService).sendOrderConfirmation(order, true);
         verify(messagingTemplate).convertAndSend(eq("/topic/user/7/orders"), any(Object.class));
     }
 
@@ -116,7 +116,7 @@ class OrderServiceTest {
 
         assertEquals(PaymentStatus.SUCCESS, payment.getStatus());
         assertEquals(OrderStatus.PENDING, order.getStatus());
-        verify(emailService).sendOrderConfirmation(order);
+        verify(emailService).sendOrderConfirmation(order, true);
     }
 
     @Test

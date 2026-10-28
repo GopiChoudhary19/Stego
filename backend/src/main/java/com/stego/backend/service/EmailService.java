@@ -51,9 +51,10 @@ public class EmailService {
         sendEmail(email, subject, body);
     }
 
-    public void sendOrderConfirmation(Order order) {
+    /** @param paid true once an online payment succeeded; cash orders are confirmed before any money changes hands */
+    public void sendOrderConfirmation(Order order, boolean paid) {
         String subject = "Stego — Order Confirmed #" + order.getId();
-        String body = EmailTemplate.getOrderConfirmationTemplate(order);
+        String body = EmailTemplate.getOrderConfirmationTemplate(order, paid);
         sendEmail(order.getUser().getEmail(), subject, body);
     }
 
