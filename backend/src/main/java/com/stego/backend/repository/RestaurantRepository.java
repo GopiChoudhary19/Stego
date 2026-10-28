@@ -16,19 +16,21 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
 
     List<Restaurant> findByIsActiveTrue();
 
+    // the cosine is clamped to [-1, 1]: rounding can push it to 1.0000000000000002 for a point at (or next to)
+    // a restaurant, and Postgres' acos rejects that with "input is out of range", failing the whole search
     @Query(value = """
             SELECT r.* FROM restaurants r
             WHERE r.is_active = true
-              AND (6371 * acos(
+              AND (6371 * acos(LEAST(1.0, GREATEST(-1.0,
                   cos(radians(:lat)) * cos(radians(r.latitude))
                 * cos(radians(r.longitude) - radians(:lng))
                 + sin(radians(:lat)) * sin(radians(r.latitude))
-              )) <= :radiusKm
-            ORDER BY (6371 * acos(
+              )))) <= :radiusKm
+            ORDER BY (6371 * acos(LEAST(1.0, GREATEST(-1.0,
                   cos(radians(:lat)) * cos(radians(r.latitude))
                 * cos(radians(r.longitude) - radians(:lng))
                 + sin(radians(:lat)) * sin(radians(r.latitude))
-              )) ASC
+              )))) ASC
             """, nativeQuery = true)
     List<Restaurant> findNearbyRestaurants(
             @Param("lat") double lat,
