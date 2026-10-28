@@ -14,6 +14,6 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
     // derived deletes load and remove rows, which needs a transaction; without one every
     // login after the first failed once an old code existed for the user
     @Transactional
-    void deleteByEmailAndType(String email, String type);
+    void deleteByEmailAndTypeAndCreatedAtBefore(String email, String type, LocalDateTime before);
     long countByEmailAndCreatedAtAfter(String email, LocalDateTime since);
 }
