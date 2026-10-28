@@ -115,6 +115,20 @@ class OrderFlowIntegrationTest {
     }
 
     @Test
+    void nearbySearchFindsARestaurantAtTheExactSearchPoint() throws Exception {
+        String owner = signUp("nearby-owner@example.test", "RESTAURANT_OWNER");
+        long restaurant = send(HttpMethod.POST, "/api/restaurants", Map.of("name", "Corner Cafe", "address",
+                "3 Test Street", "latitude", 8.0, "longitude", 77.5), owner, HttpStatus.CREATED).path("id").asLong();
+
+        // searching from the restaurant's own coordinates rounds the great-circle cosine just above 1.0
+        JsonNode nearby = send(HttpMethod.GET, "/api/restaurants/nearby?lat=8.0&lng=77.5&radiusKm=1",
+                null, null, HttpStatus.OK);
+        boolean found = false;
+        for (JsonNode r : nearby) found |= r.path("id").asLong() == restaurant;
+        assertTrue(found, "the restaurant at the search point must be returned");
+    }
+
+    @Test
     void customerOrdersAndOwnerServesTheOrder() throws Exception {
         String owner = signUp("flow-owner@example.test", "RESTAURANT_OWNER");
         String customer = signUp("flow-customer@example.test", "USER");
