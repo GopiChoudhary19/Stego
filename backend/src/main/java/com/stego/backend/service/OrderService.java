@@ -489,6 +489,30 @@ public class OrderService {
         messagingTemplate.convertAndSend("/topic/user/" + order.getUser().getId() + "/orders", response);
     }
 
+    /**
+     * Cancels card/UPI orders whose payment was never completed within {@code maxAge}, so abandoned checkouts do
+     * not sit in the kitchen queue and the customer's live orders forever. If the customer does pay later anyway,
+     * handlePaymentSuccess refunds the payment because the order is cancelled.
+     */
+    @Transactional
+    public int cancelAbandonedOnlineOrders(java.time.Duration maxAge) {
+        List<Payment> abandoned = paymentRepository.findAbandonedOnlinePayments(LocalDateTime.now().minus(maxAge));
+        for (Payment payment : abandoned) {
+            Order order = payment.getOrder();
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            if (payment.getStatus() == PaymentStatus.PENDING) {
+                payment.setStatus(PaymentStatus.FAILED);
+                paymentRepository.save(payment);
+            }
+            OrderResponse response = mapToResponse(order, payment);
+            messagingTemplate.convertAndSend("/topic/user/" + order.getUser().getId() + "/orders", response);
+            messagingTemplate.convertAndSend("/topic/restaurant/" + order.getRestaurant().getId() + "/orders", response);
+            logger.info("Cancelled order {}: online payment not completed within {}", order.getId(), maxAge);
+        }
+        return abandoned.size();
+    }
+
     /** True if {@code now} falls inside the opening hours, including hours that run past midnight (e.g. 18:00-02:00). */
     static boolean isWithinOpeningHours(LocalTime now, LocalTime opening, LocalTime closing) {
         if (!closing.isBefore(opening)) {
