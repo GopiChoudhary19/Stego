@@ -32,7 +32,9 @@ export default function LoginPage() {
     setError('');
     try {
       await verifyOtp(email, otpCode);
-      router.push('/restaurants');
+      // owners go to their control center, like after registration
+      const currentUser = useAuthStore.getState().user;
+      router.push(currentUser?.role === 'ROLE_RESTAURANT_OWNER' ? '/dashboard' : '/restaurants');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || 'Invalid or expired OTP code');
