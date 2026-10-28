@@ -62,6 +62,32 @@ class OrderFlowIntegrationTest {
     }
 
     @Test
+    void logoutRevokesTheRefreshToken() throws Exception {
+        String email = "logout@example.test";
+        send(HttpMethod.POST, "/api/auth/register", Map.of("name", "Leaving", "email", email,
+                "password", "password123", "phone", "9999999999"), null, HttpStatus.CREATED);
+        String code = codes.findTopByEmailAndTypeOrderByCreatedAtDesc(email, "AUTH").orElseThrow().getCode();
+        JsonNode tokens = send(HttpMethod.POST, "/api/auth/verify-otp", Map.of("email", email, "code", code),
+                null, HttpStatus.OK);
+        String refresh = tokens.path("refreshToken").asText();
+
+        send(HttpMethod.POST, "/api/auth/refresh", Map.of("refreshToken", refresh), null, HttpStatus.OK);
+        send(HttpMethod.POST, "/api/auth/logout", null, tokens.path("accessToken").asText(), HttpStatus.OK);
+        send(HttpMethod.POST, "/api/auth/refresh", Map.of("refreshToken", refresh), null, HttpStatus.BAD_REQUEST);
+        send(HttpMethod.POST, "/api/auth/logout", null, null, HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void profileUpdateRejectsBlankNames() throws Exception {
+        String token = signUp("profile@example.test", "USER");
+        // raw JSON strings: TestRestTemplate's default client sent an empty body for PUT with a Map
+        send(HttpMethod.PUT, "/api/users/me", "{\"name\": \"   \"}", token, HttpStatus.BAD_REQUEST);
+        send(HttpMethod.PUT, "/api/users/me", "{\"name\": null}", token, HttpStatus.BAD_REQUEST);
+        assertEquals("New Name", send(HttpMethod.PUT, "/api/users/me", "{\"name\": \" New Name \"}", token, HttpStatus.OK)
+                .path("name").asText());
+    }
+
+    @Test
     void customerOrdersAndOwnerServesTheOrder() throws Exception {
         String owner = signUp("flow-owner@example.test", "RESTAURANT_OWNER");
         String customer = signUp("flow-customer@example.test", "USER");

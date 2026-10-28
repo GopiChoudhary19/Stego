@@ -6,6 +6,7 @@ import com.stego.backend.dto.request.TokenRefreshRequest;
 import com.stego.backend.dto.response.ApiResponse;
 import com.stego.backend.dto.response.AuthResponse;
 import com.stego.backend.dto.response.OtpChallengeResponse;
+import com.stego.backend.security.UserDetailsImpl;
 import com.stego.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -52,5 +54,16 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         AuthResponse response = authService.refreshToken(request.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success("Token refreshed", response));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Revoke the current user's refresh tokens")
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        // /api/auth/** is public, so the principal is only present when a valid access token was sent
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not signed in"));
+        }
+        authService.logout(userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Signed out", null));
     }
 }

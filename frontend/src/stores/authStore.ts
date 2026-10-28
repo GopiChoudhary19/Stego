@@ -76,6 +76,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    // revoke the refresh token on the server too; clearing storage alone left it valid for days
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      api.post('/api/auth/logout', null, { headers: { Authorization: `Bearer ${accessToken}` } }).catch(() => {});
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     set({ user: null, isAuthenticated: false, authStep: 'form' });
