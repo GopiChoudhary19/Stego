@@ -52,15 +52,22 @@ export default function MenuEditor({ restaurantId }: MenuEditorProps) {
     }
   };
 
-  const handleUpdatePrice = async (item: MenuItem, newPrice: number) => {
-    if (newPrice < 0) return;
+  const handleUpdatePrice = async (item: MenuItem, input: HTMLInputElement) => {
+    const newPrice = Number(input.value);
+    // an emptied field reads as 0; blurring without a change should not save anything
+    if (input.value.trim() === '' || !Number.isFinite(newPrice) || newPrice <= 0 || newPrice === item.price) {
+      input.value = String(item.price);
+      return;
+    }
     try {
       setUpdatingId(item.id);
       const updatedData = { ...item, price: newPrice };
       await api.put(`/api/menu/${item.id}`, updatedData);
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, price: newPrice } : i));
-    } catch {
-      alert('Failed to update price');
+    } catch (err: unknown) {
+      input.value = String(item.price);
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      alert(axiosErr.response?.data?.message || 'Failed to update price');
     } finally {
       setUpdatingId(null);
     }
@@ -146,7 +153,10 @@ export default function MenuEditor({ restaurantId }: MenuEditorProps) {
                       type="number"
                       className="bg-transparent font-bold text-sm w-16 outline-none"
                       defaultValue={item.price}
-                      onBlur={(e) => handleUpdatePrice(item, Number(e.target.value))}
+                      min={0.01}
+                      max={10000}
+                      step={0.01}
+                      onBlur={(e) => handleUpdatePrice(item, e.currentTarget)}
                     />
                   </div>
 

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public class OrderRequest {
     private Long restaurantId;
 
     @NotEmpty(message = "Order must contain at least one item")
+    @Size(max = 50, message = "An order can have at most 50 different items")
     @Valid
     private List<OrderItemRequest> items;
 
