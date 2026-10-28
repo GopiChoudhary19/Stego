@@ -17,6 +17,9 @@ services:
         fromDatabase: {name: stego-db, property: user}
       - key: DB_PASSWORD
         fromDatabase: {name: stego-db, property: password}
+      # restaurants enter opening hours in local time; Render's servers run on UTC
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
       - key: JWT_SECRET
         generateValue: true
       - key: SERVER_PORT
