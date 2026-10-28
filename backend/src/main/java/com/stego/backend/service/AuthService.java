@@ -24,6 +24,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -134,16 +136,18 @@ public class AuthService {
     }
 
     private void sendAndStoreOtp(String email, String type) {
-        // Anti-abuse: limit to 3 OTPs every 15 minutes
-        long count = verificationCodeRepository.countByEmailAndCreatedAtAfter(email, LocalDateTime.now().minusMinutes(15));
+        // Anti-abuse: limit to 3 OTPs every 15 minutes. Codes issued inside the window are kept (only the newest
+        // one can be verified) so they still count; deleting them here used to keep the count at 1 forever.
+        LocalDateTime windowStart = LocalDateTime.now().minusMinutes(15);
+        verificationCodeRepository.deleteByEmailAndTypeAndCreatedAtBefore(email, type, windowStart);
+        long count = verificationCodeRepository.countByEmailAndCreatedAtAfter(email, windowStart);
         if (count >= 3) {
             throw new RateLimitExceededException("Too many OTP requests. Please wait a few minutes.");
         }
 
         String otp = String.valueOf(100000 + OTP_RANDOM.nextInt(900000));
-        
+
         // Save to DB
-        verificationCodeRepository.deleteByEmailAndType(email, type);
         VerificationCode vCode = VerificationCode.builder()
                 .email(email)
                 .code(otp)
@@ -164,14 +168,16 @@ public class AuthService {
             throw new BadRequestException("Verification code has expired");
         }
 
-        if (!vCode.getCode().equals(code)) {
+        if (!MessageDigest.isEqual(vCode.getCode().getBytes(StandardCharsets.UTF_8), code.getBytes(StandardCharsets.UTF_8))) {
             vCode.setAttemptsCount(vCode.getAttemptsCount() + 1);
-            verificationCodeRepository.save(vCode);
-            
             if (vCode.getAttemptsCount() >= 5) {
-                verificationCodeRepository.delete(vCode);
+                // expire instead of deleting: a deleted row would no longer count toward the 3-codes-per-15-minutes
+                // limit, which would hand out a fresh set of guesses straight away
+                vCode.setExpiryTime(LocalDateTime.now().minusSeconds(1));
+                verificationCodeRepository.save(vCode);
                 throw new BadRequestException("Too many failed attempts. Please request a new code.");
             }
+            verificationCodeRepository.save(vCode);
             throw new BadRequestException("Invalid verification code");
         }
 
