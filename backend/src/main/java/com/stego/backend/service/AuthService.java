@@ -123,6 +123,11 @@ public class AuthService {
                 user.getName(), user.getEmail(), user.getRole().name());
     }
 
+    /** Signs the user out everywhere: their refresh tokens stop working, access tokens simply expire. */
+    public void logout(Long userId) {
+        refreshTokenService.deleteByUserId(userId);
+    }
+
     public AuthResponse refreshToken(String requestRefreshToken) {
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
