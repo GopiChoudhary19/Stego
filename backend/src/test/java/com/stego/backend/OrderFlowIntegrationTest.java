@@ -80,11 +80,10 @@ class OrderFlowIntegrationTest {
     @Test
     void profileUpdateRejectsBlankNames() throws Exception {
         String token = signUp("profile@example.test", "USER");
-        send(HttpMethod.PUT, "/api/users/me", Map.of("name", "   "), token, HttpStatus.BAD_REQUEST);
-        java.util.HashMap<String, String> nullName = new java.util.HashMap<>();
-        nullName.put("name", null);
-        send(HttpMethod.PUT, "/api/users/me", nullName, token, HttpStatus.BAD_REQUEST);
-        assertEquals("New Name", send(HttpMethod.PUT, "/api/users/me", Map.of("name", " New Name "), token, HttpStatus.OK)
+        // raw JSON strings: TestRestTemplate's default client sent an empty body for PUT with a Map
+        send(HttpMethod.PUT, "/api/users/me", "{\"name\": \"   \"}", token, HttpStatus.BAD_REQUEST);
+        send(HttpMethod.PUT, "/api/users/me", "{\"name\": null}", token, HttpStatus.BAD_REQUEST);
+        assertEquals("New Name", send(HttpMethod.PUT, "/api/users/me", "{\"name\": \" New Name \"}", token, HttpStatus.OK)
                 .path("name").asText());
     }
 
