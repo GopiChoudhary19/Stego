@@ -34,7 +34,17 @@ export default function RestaurantPage({ params }: { params: Promise<{ id: strin
   const [menuSearch, setMenuSearch] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
 
-  const { items, addItem, updateQuantity, getItemCount, getTotal } = useCartStore();
+  const { items, addItem, updateQuantity, getItemCount, getTotal, restaurantId: cartRestaurantId, restaurantName: cartRestaurantName } = useCartStore();
+
+  // an order holds one restaurant's items, so adding from another restaurant replaces the cart: ask first
+  const handleAdd = (item: MenuItem) => {
+    if (!restaurant) return;
+    if (cartRestaurantId !== null && cartRestaurantId !== item.restaurantId && items.length > 0
+        && !window.confirm(`Your cart has items from ${cartRestaurantName}. Start a new cart for ${restaurant.name}?`)) {
+      return;
+    }
+    addItem(item, restaurant.name);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -270,10 +280,11 @@ export default function RestaurantPage({ params }: { params: Promise<{ id: strin
                                         </button>
                                       </div>
                                     ) : (
-                                      <button onClick={() => addItem(item, restaurant.name)}
+                                      <button onClick={() => handleAdd(item)}
                                               className="w-full py-3 bg-white text-brand font-black text-xs rounded-[1rem] shadow-2xl border border-brand/20 hover:bg-brand hover:text-white active:scale-95 transition-all uppercase tracking-widest disabled:opacity-50"
-                                              disabled={!item.isAvailable}>
-                                        ADD
+                                              disabled={!item.isAvailable || !restaurant.isOpen}
+                                              title={restaurant.isOpen ? undefined : 'This restaurant is closed right now'}>
+                                        {restaurant.isOpen ? 'ADD' : 'CLOSED'}
                                       </button>
                                     )}
                                   </div>
