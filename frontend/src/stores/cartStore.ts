@@ -24,15 +24,15 @@ export const useCartStore = create<CartState>()(
       addItem: (menuItem, restaurantName) => {
         const state = get();
 
-        // If cart has items from a different restaurant, clear it
-        if (state.restaurantId && state.restaurantId !== menuItem.restaurantId) {
-          set({ items: [], restaurantId: menuItem.restaurantId, restaurantName });
-        }
+        // An order belongs to one restaurant, so adding from another one starts a fresh cart.
+        // (Reading state.items after clearing used to put the old restaurant's items straight back.)
+        const switching = state.restaurantId !== null && state.restaurantId !== menuItem.restaurantId;
+        const current = switching ? [] : state.items;
 
-        const existing = state.items.find((i) => i.menuItem.id === menuItem.id);
+        const existing = current.find((i) => i.menuItem.id === menuItem.id);
         if (existing) {
           set({
-            items: state.items.map((i) =>
+            items: current.map((i) =>
               i.menuItem.id === menuItem.id ? { ...i, quantity: i.quantity + 1 } : i
             ),
             restaurantId: menuItem.restaurantId,
@@ -40,7 +40,7 @@ export const useCartStore = create<CartState>()(
           });
         } else {
           set({
-            items: [...state.items, { menuItem, quantity: 1 }],
+            items: [...current, { menuItem, quantity: 1 }],
             restaurantId: menuItem.restaurantId,
             restaurantName,
           });
