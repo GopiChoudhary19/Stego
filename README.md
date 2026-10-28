@@ -59,6 +59,8 @@ cp backend/.env.example backend/.env
 Set `DB_PASSWORD` and `JWT_SECRET` (generate one with `openssl rand -base64 32`). There are no built-in
 defaults: the app and `docker compose` refuse to start without them. Stripe and SMTP settings are optional
 for local runs; Stripe webhooks are rejected until `STRIPE_WEBHOOK_SECRET` is set.
+Opening hours and order times use `APP_TIMEZONE` (default `Asia/Kolkata`), so a UTC server still checks
+restaurant hours in local time.
 
 For a quick look without PostgreSQL, run the backend with the in-memory profile:
 `./mvnw spring-boot:run -Dspring-boot.run.profiles=h2`. It seeds three restaurants and an owner account
