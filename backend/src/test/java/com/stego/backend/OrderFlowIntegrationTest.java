@@ -135,6 +135,24 @@ class OrderFlowIntegrationTest {
     }
 
     @Test
+    void searchTreatsWildcardCharactersLiterally() throws Exception {
+        String owner = signUp("search-owner@example.test", "RESTAURANT_OWNER");
+        send(HttpMethod.POST, "/api/restaurants", Map.of("name", "100% Veg Dhaba", "address", "4 Test Street"),
+                owner, HttpStatus.CREATED);
+        send(HttpMethod.POST, "/api/restaurants", Map.of("name", "Plain Kitchen", "address", "5 Test Street"),
+                owner, HttpStatus.CREATED);
+
+        // a prebuilt URI, because TestRestTemplate would encode "%25" a second time
+        ResponseEntity<String> raw = http.getForEntity(
+                java.net.URI.create(http.getRootUri() + "/api/restaurants/search?q=%25"), String.class);
+        JsonNode percent = json.readTree(raw.getBody()).path("data");
+        assertEquals(1, percent.size());
+        assertEquals("100% Veg Dhaba", percent.get(0).path("name").asText());
+        assertEquals(0, send(HttpMethod.GET, "/api/restaurants/search?q=_", null, null, HttpStatus.OK).size());
+        assertEquals(1, send(HttpMethod.GET, "/api/restaurants/search?q=plain", null, null, HttpStatus.OK).size());
+    }
+
+    @Test
     void customerOrdersAndOwnerServesTheOrder() throws Exception {
         String owner = signUp("flow-owner@example.test", "RESTAURANT_OWNER");
         String customer = signUp("flow-customer@example.test", "USER");

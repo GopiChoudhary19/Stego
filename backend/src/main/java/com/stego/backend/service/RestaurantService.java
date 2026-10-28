@@ -88,7 +88,9 @@ public class RestaurantService {
     }
 
     public List<RestaurantResponse> searchRestaurants(String query) {
-        return restaurantRepository.searchByName(query).stream()
+        // '%' and '_' are LIKE wildcards: unescaped, a search for "_" or "%" returned every restaurant
+        String literal = query.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        return restaurantRepository.searchByName(literal).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
